@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TBS Dossier Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<style>
+:root{
+  --ink:#16213E; --ink2:#3C4A66; --muted:#6B778F; --line:#DCE1EA; --line2:#EDF0F5;
+  --paper:#FFFFFF; --wash:#F6F7FB; --indigo:#3434C8; --indigo2:#EEF0FF; --indigo3:#C9CCF6;
+  --ok:#1D7A4B; --okbg:#E5F4EC; --warn:#9A5B00; --warnbg:#FFF3DC; --bad:#B42318; --badbg:#FDECEA;
+  --out:#A4460E; --outbg:#FCEBDD; --na:#5F6778; --nabg:#EEF0F3;
+  --side:#16213E; --sidefg:#C7CFE0;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#E6EAF3;--ink2:#C3CBDB;--muted:#8E99B0;--line:#2D3752;--line2:#222B41;--paper:#111829;--wash:#172035;--indigo:#7C82FF;--indigo2:#1C2244;--indigo3:#3A4180;--ok:#5FD39A;--okbg:#12301F;--warn:#F2C265;--warnbg:#33280F;--bad:#FF8A80;--badbg:#3A1714;--out:#F4A36B;--outbg:#3A2210;--na:#A7B0C2;--nabg:#232C42;--side:#0B1120}}
+:root[data-theme="dark"]{--ink:#E6EAF3;--ink2:#C3CBDB;--muted:#8E99B0;--line:#2D3752;--line2:#222B41;--paper:#111829;--wash:#172035;--indigo:#7C82FF;--indigo2:#1C2244;--indigo3:#3A4180;--ok:#5FD39A;--okbg:#12301F;--warn:#F2C265;--warnbg:#33280F;--bad:#FF8A80;--badbg:#3A1714;--out:#F4A36B;--outbg:#3A2210;--na:#A7B0C2;--nabg:#232C42;--side:#0B1120}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;height:100%;background:var(--paper);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--indigo)}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+.app{display:grid;grid-template-columns:232px 1fr;height:100%}
+aside{background:var(--side);color:var(--sidefg);display:flex;flex-direction:column;padding:18px 12px;overflow:auto}
+.brand{display:flex;gap:10px;align-items:center;padding:4px 8px 20px;color:#fff}
+.brand svg{flex:none}
+.brand b{display:block;font-size:15px;letter-spacing:.2px}
+.brand small{display:block;font-size:12px;color:#94A0BA}
+nav button{display:flex;width:100%;gap:10px;align-items:center;background:none;border:0;color:var(--sidefg);padding:9px 10px;border-radius:6px;cursor:pointer;text-align:left;font-size:14px}
+nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+nav button[aria-current="page"]{background:rgba(120,130,255,.18);color:#fff;box-shadow:inset 3px 0 0 #8C92FF}
+nav .count{margin-left:auto;font-size:12px;background:rgba(255,255,255,.1);padding:0 7px;border-radius:9px}
+.side-foot{margin-top:auto;font-size:12px;color:#8894AE;padding:12px 8px 0;line-height:1.45}
+main{overflow:auto;background:var(--paper)}
+.topbar{display:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 60px}
+h1{font-size:26px;line-height:1.2;margin:0 0 4px;font-weight:700;letter-spacing:-.2px}
+h2{font-size:18px;margin:28px 0 10px;font-weight:600}
+h3{font-size:15px;margin:18px 0 8px;font-weight:600}
+.sub{color:var(--muted);margin:0 0 20px;max-width:70ch}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--paper);padding:8px 14px;border-radius:7px;cursor:pointer;font-weight:500;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:#B8C0D0;background:var(--wash)}
+.btn.primary{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn.primary:disabled{background:var(--indigo)}
+.btn.primary:hover:not(:disabled){filter:brightness(.9)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:6px 0 26px}
+.stat{padding:16px 18px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .n{font-size:28px;font-weight:700;line-height:1.1}
+.stat .l{font-size:13px;color:var(--muted)}
+.stat.go .n{color:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.card{border:1px solid var(--line);border-radius:10px;padding:18px;background:var(--paper)}
+.dcard h3{margin:0 0 2px;font-size:17px}
+.dcard .meta{color:var(--muted);font-size:13px}
+.bar{height:8px;background:var(--line2);border-radius:5px;overflow:hidden;margin:12px 0 6px}
+.bar i{display:block;height:100%;background:var(--indigo);border-radius:5px;transition:width .4s}
+.kv3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0 14px;font-size:13px}
+.kv3 b{display:block;font-size:18px}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;letter-spacing:.1px}
+.b-AVAILABLE,.b-VALID,.b-CURRENT{background:var(--okbg);color:var(--ok)}
+.b-SUPPORTING,.b-EXPIRING{background:var(--warnbg);color:var(--warn)}
+.b-PENDING,.b-EXPIRED,.b-CONFLICT,.b-critical{background:var(--badbg);color:var(--bad)}
+.b-OUTDATED,.b-OVERDUE,.b-major{background:var(--outbg);color:var(--out)}
+.b-NA,.b-NOEXP,.b-minor,.b-RECOMMENDED{background:var(--nabg);color:var(--na)}
+.b-minor{background:var(--warnbg);color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:600;color:var(--ink2);background:var(--wash);border-bottom:1px solid var(--line);padding:8px 10px;white-space:nowrap}
+td{border-bottom:1px solid var(--line2);padding:8px 10px;vertical-align:top}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.tablewrap table tr:last-child td{border-bottom:0}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 18px;overflow-x:auto}
+.tabs button{background:none;border:0;padding:10px 14px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--indigo);border-bottom-color:var(--indigo)}
+.drop{border:2px dashed var(--indigo3);background:var(--indigo2);border-radius:12px;padding:34px;text-align:center;cursor:pointer;transition:background .15s}
+.drop.over{background:var(--indigo3);border-color:var(--indigo)}
+.drop b{display:block;font-size:17px;margin-bottom:4px}
+.field{display:block;margin:0 0 14px}
+.field span{display:block;font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:5px}
+.input{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px 11px;background:var(--paper)}
+textarea.input{min-height:64px;resize:vertical;line-height:1.45}
+.input:focus{border-color:var(--indigo);outline:none;box-shadow:0 0 0 3px rgba(52,52,200,.15)}
+.uplist{margin-top:14px;display:grid;gap:6px}
+.up{display:grid;grid-template-columns:1fr 90px 140px;gap:12px;align-items:center;font-size:13.5px;border:1px solid var(--line2);border-radius:7px;padding:7px 10px}
+.up .pb{height:5px;background:var(--line2);border-radius:3px;overflow:hidden}.up .pb i{display:block;height:100%;background:var(--ok)}
+/* Filing index: the signature element */
+.index{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ix{display:grid;grid-template-columns:8px 64px 1fr auto;align-items:center;gap:12px;padding:10px 14px 10px 0;border-bottom:1px solid var(--line2);font-size:14px}
+.ix:last-child{border-bottom:0}
+.ix .edge{align-self:stretch;background:var(--line)}
+.ix.s-AVAILABLE .edge{background:var(--ok)}.ix.s-SUPPORTING .edge{background:#E0A526}.ix.s-PENDING .edge,.ix.s-EXPIRED .edge,.ix.s-CONFLICT .edge{background:var(--bad)}.ix.s-OUTDATED .edge{background:#D9772B}
+.ix .code{font-weight:700;color:var(--ink2);font-size:13px}
+.ix .files{font-size:12.5px;color:var(--muted)}
+.ix.child .code{padding-left:14px;font-weight:500;color:var(--muted)}
+.log{font-size:13px;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:10px 12px;max-height:240px;overflow:auto;white-space:pre-wrap}
+.analysis-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:14px 0}
+.analysis-grid div{padding:12px 14px;border-right:1px solid var(--line)}
+.analysis-grid div:last-child{border-right:0}
+.analysis-grid b{display:block;font-size:22px}
+.analysis-grid span{font-size:12.5px;color:var(--muted)}
+.conf{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;padding:12px 14px;margin:0 0 10px}
+.conf.major{border-left-color:#D9772B}.conf.minor{border-left-color:#E0A526}
+.conf dl{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;margin:8px 0 0;font-size:13.5px}
+.conf dt{color:var(--muted)}
+.conf dd{margin:0}
+.chat{display:flex;flex-direction:column;height:520px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--wash)}
+.msg{max-width:80%;padding:9px 12px;border-radius:10px;white-space:pre-wrap;font-size:14px}
+.msg.u{align-self:flex-end;background:var(--indigo);color:#fff}
+.msg.a{align-self:flex-start;background:var(--paper);border:1px solid var(--line)}
+.chatin{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 10px 0}
+.chip{font-size:12.5px;border:1px solid var(--line);background:var(--paper);border-radius:14px;padding:3px 10px;cursor:pointer}
+.notice{border:1px solid var(--indigo3);background:var(--indigo2);border-radius:8px;padding:10px 14px;font-size:13.5px;margin:0 0 16px}
+.notice.warn{border-color:#F0CF8E;background:var(--warnbg)}
+.notice.bad{border-color:#F2B8B2;background:var(--badbg)}
+.empty{text-align:center;padding:48px 20px;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:6px}
+.modal{position:fixed;inset:0;background:rgba(22,33,62,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal .box{background:var(--paper);border-radius:12px;max-width:900px;width:100%;max-height:90%;overflow:auto;padding:22px}
+.preview canvas,.preview img{max-width:100%;border:1px solid var(--line);margin-bottom:10px;display:block}
+.toast{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;max-width:420px}
+select.input{padding:7px 9px;min-width:120px}
+.ingr input{border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:5px;width:100%;min-width:60px}
+.ingr input:hover{border-color:var(--line)}
+.ingr input:focus{border-color:var(--indigo);background:var(--paper);outline:none}
+.kvform{display:grid;grid-template-columns:260px 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kvform>div{padding:10px 14px;border-bottom:1px solid var(--line2)}
+.kvform>div:nth-child(odd){background:var(--wash);font-weight:600;font-size:13.5px;color:var(--ink2)}
+.kvform textarea{min-height:40px}
+.src{font-size:12px;color:var(--muted);margin-top:3px}
+.na{color:var(--bad);font-style:italic}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:fixed;inset:0 30% 0 0;z-index:40;transform:translateX(-102%);transition:transform .2s;padding-top:calc(18px + env(safe-area-inset-top,0px))}
+  aside.open{transform:none}
+  .topbar{display:flex;position:sticky;top:0;z-index:30;background:var(--side);color:#fff;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));align-items:center;gap:10px}
+  .topbar button{background:none;border:0;color:#fff;font-size:20px}
+  .wrap{padding:18px 16px 50px}
+  .stats{grid-template-columns:repeat(2,1fr)}.stat{border-bottom:1px solid var(--line)}
+  .analysis-grid{grid-template-columns:repeat(3,1fr)}
+  .kvform{grid-template-columns:1fr}
+  .up{grid-template-columns:1fr 70px}.up .st{display:none}
+  .ix{grid-template-columns:6px 52px 1fr}.ix>:last-child{grid-column:3}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="5" width="20" height="22" rx="2" fill="#3434C8"/><rect x="7" y="2" width="20" height="22" rx="2" fill="#8C92FF"/><path d="M11 9h12M11 13h12M11 17h8" stroke="#16213E" stroke-width="2" stroke-linecap="round"/></svg>
+      <div><b>TBS Dossier Builder</b><small>Food supplement dossiers</small></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="side-foot">Prepares and organises dossiers. Regulatory acceptance is decided by TBS, not by this tool.</div>
+  </aside>
+  <main id="main">
+    <div class="topbar"><button id="menuBtn" aria-label="Open menu">☰</button><b>TBS Dossier Builder</b></div>
+    <div class="wrap" id="view"></div>
+  </main>
+</div>
+<div id="modalRoot"></div>
+<script>
+/* Deployment shim: provides window.claude.use("sample"|"downloads") backed by /api/claude (Anthropic API via Vercel function). */
+(function(){
+  "use strict";
+  const PW_KEY="tbs_app_password";
+  let healthP=null;
+  function health(){ if(!healthP) healthP=fetch("/api/claude",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null); return healthP; }
+  function tolerantJSON(t){ t=String(t||"").trim(); try{return JSON.parse(t);}catch{}
+    const f=t.match(/```(?:json)?\s*([\s\S]*?)```/); if(f){ try{return JSON.parse(f[1]);}catch{} }
+    const a=Math.min(...["{","["].map(c=>{const i=t.indexOf(c);return i<0?Infinity:i;})); const b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
+    if(a<Infinity&&b>a){ try{return JSON.parse(t.slice(a,b+1));}catch{} } return undefined; }
+  function b64(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=()=>rej(r.error); r.readAsDataURL(blob); }); }
+  async function shrink(blob,maxW,q){ try{ const bmp=await createImageBitmap(blob); const sc=Math.min(1,maxW/Math.max(bmp.width,bmp.height)); const c=document.createElement("canvas"); c.width=Math.round(bmp.width*sc); c.height=Math.round(bmp.height*sc); const x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||blob),"image/jpeg",q)); }catch{ return blob; } }
+  async function build(input,opts){ const messages=typeof input==="string"?[{role:"user",content:input}]:input.map(m=>({role:m.role,content:m.content}));
+    const images=[]; if(opts&&opts.images){ const arr=opts.images instanceof Blob?[opts.images]:Array.from(opts.images); for(const bl of arr.slice(0,8)){ images.push({media_type:"image/jpeg",data:await b64(await shrink(bl,1400,.78))}); } }
+    const size=()=>images.reduce((a,i)=>a+i.data.length,0)+JSON.stringify(messages).length;
+    while(size()>4000000 && images.length) images.pop();   /* Vercel request body limit is 4.5 MB */
+    return {messages,images,tier:(opts&&opts.modelTier)||"default"}; }
+  async function call(payload,signal,retried){
+    if(signal&&signal.aborted) throw {code:"cancelled",message:"cancelled"};
+    let r; try{ r=await fetch("/api/claude",{method:"POST",headers:{"content-type":"application/json","x-app-password":localStorage.getItem(PW_KEY)||""},body:JSON.stringify(payload),signal}); }
+    catch(e){ throw {code:signal&&signal.aborted?"cancelled":"upstream_error",message:String(e&&e.message||e)}; }
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401 && !retried){ const p=window.prompt("Enter the app password to use AI analysis:"); if(p){ localStorage.setItem(PW_KEY,p); return call(payload,signal,true); } }
+    if(!r.ok) throw {code:d.code||(r.status===504?"timeout":"upstream_error"),message:d.message||("HTTP "+r.status)};
+    return d; }
+  async function sample(input,opts={}){ const p=await build(input,opts); const d=await call(p,opts.signal); if(typeof opts.onText==="function"&&d.text) opts.onText({text:d.text,delta:d.text}); return {text:d.text,truncated:!!d.truncated,modelTierApplied:p.tier}; }
+  sample.json=async(input,opts={})=>{ const p=await build(input,opts); p.json=true; const d=await call(p,opts.signal); const v=tolerantJSON(d.text); if(v===undefined) throw {code:"invalid_json",message:"Reply was not JSON",text:d.text}; return v; };
+  sample.limits=async()=>({maxPromptBytes:200000,images:{maxCount:8,maxInputBytes:20000000,mediaTypes:["image/jpeg","image/png","image/webp"]}});
+  const downloads={save:async({filename,data})=>{ const blob=data instanceof Blob?data:new Blob([data]); const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),60000); }};
+  window.TBS_DEPLOYED=true; window.TBS_PW_KEY=PW_KEY;
+  window.claude={use:async name=>{ if(name==="downloads") return downloads; if(name==="sample"){ const h=await health(); return h&&h.keyConfigured?sample:null; } return null; }};
+})();
+</script>
+<script>
+"use strict";
+/* ================= constants ================= */
+const NA = "NOT AVAILABLE IN UPLOADED DOCUMENTS";
+const PROMPT_BUDGET = 180000;
+const POINTS = [
+  {code:"1.6.1",label:"Product Label",folder:"1.6.1_Product_Label"},
+  {code:"1.6.2",label:"Certificate of Analysis",folder:"1.6.2_Certificate_of_Analysis",file:"Certificate_of_Analysis"},
+  {code:"1.6.3",label:"MSDS / SDS",folder:"1.6.3_MSDS",file:"MSDS",req:"Material Safety Data Sheet / Safety Data Sheet"},
+  {code:"1.6.4",label:"GMP Certificate",folder:"1.6.4_GMP_Certificate",file:"GMP_Certificate",req:"GMP Certificate of the manufacturing site"},
+  {code:"1.6.5",label:"Free Sale Certificate",folder:"1.6.5_Free_Sale_Certificate",file:"Free_Sale_Certificate",req:"Free Sale Certificate"},
+  {code:"1.6.6",label:"Site Master File",folder:"1.6.6_Site_Master_File",file:"Site_Master_File",req:"Site Master File of the manufacturer"},
+  {code:"1.7.1",label:"Product Specification / MOA",folder:"1.7_Additional_Attachments/1.7.1_Product_Specification_and_MOA",file:"Specification_and_MOA",req:"Finished product specification and method of analysis",add:true},
+  {code:"1.7.2",label:"Composition",folder:"1.7_Additional_Attachments/1.7.2_Composition_of_Product",file:"Composition",req:"Composition of product",add:true},
+  {code:"1.7.3",label:"Stability Data / Commitment Letter",folder:"1.7_Additional_Attachments/1.7.3_Stability_Data_and_Commitment_Letter",file:"Stability_Data",req:"Stability data and stability commitment letter",add:true},
+];
+const LABEL_SUBS = ["Carton","Blister_Foil","Pack_Insert","Inner_Label","Outer_Label"];
+const SUB_FILE = {Carton:"Carton_Artwork",Blister_Foil:"Blister_Foil_Artwork",Pack_Insert:"Pack_Insert",Inner_Label:"Inner_Label",Outer_Label:"Outer_Label"};
+const FORM_FIELDS = [
+  ["1.2","Product / Common Name"],["1.3","Product Type"],["1.4.1","Type of Packaging Container"],["1.4.2","Retail Packaging Unit(s)"],
+  ["1.4.3","Shelf Life (Months)"],["1.4.4","Shelf Life After Opening Container"],["1.4.5","Instruction for User"],["1.4.6","Recommended Storage Condition"],
+  ["1.4.7","Country of Origin"],["1.4.8","Region Where Company Operates"],["1.5.1","Brand Name"],
+  ["3.1","Company Name of Manufacturer"],["3.2.1","Mobile Number"],["3.2.2","Email Address"],["3.2.3","Postal Address"],
+  ["3.2.4","Country Where Product Was Manufactured"],["3.2.5","City"],["3.2.6","Street"],["3.x","Additional Manufacturer Information"]
+];
+const ACCEPT = ["pdf","docx","xlsx","xls","jpg","jpeg","png","webp","zip","txt","csv"];
+const MAX_FILE = 60*1024*1024;
+const todayD = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+const todayISO = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+
+/* ================= utils ================= */
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const extOf = n => (n.split(".").pop()||"").toLowerCase();
+const slug = s => String(s||"").trim().replace(/[^A-Za-z0-9\-]+/g,"_").replace(/_+/g,"_").replace(/^_|_$/g,"").slice(0,60) || "Product";
+const kb = n => n>1048576 ? (n/1048576).toFixed(1)+" MB" : Math.max(1,Math.round(n/1024))+" KB";
+const fmtD = iso => { if(!iso) return "—"; const m=String(iso).match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/); if(!m) return esc(iso); return (m[3]?m[3]+"/":"")+m[2]+"/"+m[1]; };
+const fmtPlain = iso => { const m=String(iso||"").match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/); if(!iso) return "—"; if(!m) return String(iso); return (m[3]?m[3]+"/":"")+m[2]+"/"+m[1]; };
+function parseISO(s, end){ const m=String(s||"").match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/); if(!m) return null;
+  if(m[3]) return new Date(+m[1],+m[2]-1,+m[3]); return end? new Date(+m[1],+m[2],0) : new Date(+m[1],+m[2]-1,1); }
+const daysBetween = (a,b) => Math.round((b-a)/86400000);
+function toast(msg,ms=3500){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),ms); }
+const bytesOf = s => new TextEncoder().encode(s).length;
+function clipBytes(s,max){ if(bytesOf(s)<=max) return s; let lo=0,hi=s.length; while(lo<hi){const mid=(lo+hi+1)>>1; if(bytesOf(s.slice(0,mid))<=max) lo=mid; else hi=mid-1;} return s.slice(0,lo)+"\n[...content truncated...]"; }
+async function sha256(blob){ try{ const h=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer()); return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join(""); }catch{ return "n/a"; } }
+function csvOf(rows){ return rows.map(r=>r.map(c=>{const s=String(c??""); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(",")).join("\r\n"); }
+
+/* ================= IndexedDB ================= */
+let DBH=null;
+function openDB(){ return new Promise((res,rej)=>{ let r; try{ r=indexedDB.open("tbs-dossier-builder",1);}catch(e){return rej(e);} 
+  r.onupgradeneeded=()=>{ const d=r.result; if(!d.objectStoreNames.contains("projects")) d.createObjectStore("projects",{keyPath:"id"});
+    if(!d.objectStoreNames.contains("files")){ const s=d.createObjectStore("files",{keyPath:"id"}); s.createIndex("pid","pid"); }
+    if(!d.objectStoreNames.contains("kv")) d.createObjectStore("kv",{keyPath:"k"}); };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function tx(store,mode,fn){ return new Promise((res,rej)=>{ try{ const t=DBH.transaction(store,mode); const s=t.objectStore(store); const out=fn(s); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out); t.onerror=()=>rej(t.error);}catch(e){rej(e);} }); }
+const idbPut=(st,o)=>tx(st,"readwrite",s=>s.put(o));
+const idbDel=(st,k)=>tx(st,"readwrite",s=>s.delete(k));
+const idbGet=(st,k)=>new Promise((res,rej)=>{try{const r=DBH.transaction(st).objectStore(st).get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e)}});
+const idbAll=(st)=>new Promise((res,rej)=>{try{const r=DBH.transaction(st).objectStore(st).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);}catch(e){rej(e)}});
+const idbFiles=(pid)=>new Promise((res,rej)=>{try{const r=DBH.transaction("files").objectStore("files").index("pid").getAll(pid);r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);}catch(e){rej(e)}});
+
+/* ================= state ================= */
+const S = { view:"dashboard", pid:null, tab:"Overview", projects:[], settings:{tier:"default", expiryDays:90, maxImages:6, req17:true}, running:null, log:[], uploads:[] };
+let SAMPLE=null, DL=null, LIMITS=null, AI_READY=false;
+async function saveProject(p){ p.updatedAt=Date.now(); await idbPut("projects",p); const i=S.projects.findIndex(x=>x.id===p.id); if(i>=0) S.projects[i]=p; else S.projects.push(p); }
+const curP = () => S.projects.find(p=>p.id===S.pid);
+function newProject(name){ return {id:uid(),name:name.trim(),createdAt:Date.now(),updatedAt:Date.now(),version:0,versions:[],docs:[],form:{},formEdited:{},ingredients:[],conflicts:[],observations:[],summary:"",generated:[],custom:[],chat:[],analyzedAt:null,stale:false}; }
+
+/* ================= capabilities ================= */
+(async()=>{
+  try{ SAMPLE = window.claude && window.claude.use ? await window.claude.use("sample") : null; }catch{ SAMPLE=null; }
+  try{ DL = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch{ DL=null; }
+  try{ LIMITS = SAMPLE ? await SAMPLE.limits() : null; }catch{ LIMITS=null; }
+  AI_READY = !!SAMPLE; S.capsLoaded=true; render();
+})();
+async function save(filename,data){
+  if(!DL){ toast("Downloads are unavailable in this browser."); return false; }
+  try{ await DL.save({filename,data}); toast("Saved "+filename); return true; }
+  catch(e){ if(e.code==="declined") toast("Download cancelled."); else if(e.code==="rate_limited") toast("A download prompt is already open."); else toast("Download failed: "+(e.code||"error")); return false; }
+}
+function aiErr(e){ const c=e&&e.code; return {not_granted:"App password missing or incorrect. Enter it when prompted (Settings → Change app password).",not_configured:"The server has no valid ANTHROPIC_API_KEY. Set it in Vercel → Project → Settings → Environment Variables and redeploy.",timeout:"The server timed out on this document. Try the Quick model or fewer page images in Settings.",rate_limited:"Too many requests right now. Wait a minute, then run the analysis again.",prompt_too_large:"This document is too large to send in one request.",invalid_json:"The AI reply could not be read as data. Run the analysis again for this document.",cancelled:"Stopped.",images_unavailable:"Image reading is not available in this view."}[c] || ("AI request failed ("+(c||"error")+").");
+}
+
+/* ================= content extraction ================= */
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }
+function canvasBlob(c,q=.85){ return new Promise(r=>c.toBlob(b=>r(b),"image/jpeg",q)); }
+async function renderPdfPage(pdf,n,maxW=1500){ const page=await pdf.getPage(n); const v1=page.getViewport({scale:1}); const sc=Math.min(2.2,maxW/v1.width); const vp=page.getViewport({scale:sc});
+  const c=document.createElement("canvas"); c.width=Math.ceil(vp.width); c.height=Math.ceil(vp.height); const ctx=c.getContext("2d"); ctx.fillStyle="#fff"; ctx.fillRect(0,0,c.width,c.height);
+  await page.render({canvasContext:ctx,viewport:vp}).promise; return c; }
+async function downscaleImage(blob,maxW=1800){ try{ const bmp=await createImageBitmap(blob); const sc=Math.min(1,maxW/Math.max(bmp.width,bmp.height)); const c=document.createElement("canvas"); c.width=Math.round(bmp.width*sc); c.height=Math.round(bmp.height*sc); c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); return await canvasBlob(c,.88);}catch{ return blob; } }
+async function extractContent(rec){
+  const ext=extOf(rec.name); const ab=await rec.blob.arrayBuffer(); const maxImg=Math.min(S.settings.maxImages, LIMITS?.images?.maxCount||0);
+  if(ext==="pdf"){
+    if(!window.pdfjsLib) throw new Error("PDF reader failed to load");
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(ab)}).promise; const pages=pdf.numPages; let text=""; const per=[];
+    for(let i=1;i<=pages;i++){ const pg=await pdf.getPage(i); const tc=await pg.getTextContent(); let t=""; for(const it of tc.items){ t+=it.str+(it.hasEOL?"\n":" "); } t=t.replace(/[ \t]+/g," ").trim(); per.push(t.length); text+=`\n--- Page ${i} of ${pages} ---\n`+t; }
+    const images=[]; const imgPages=[];
+    if(maxImg>0){ const cand=[]; for(let i=1;i<=pages;i++){ if(pages<=3 || per[i-1]<120) cand.push(i); }
+      for(const n of cand.slice(0,maxImg)){ const c=await renderPdfPage(pdf,n); images.push(await canvasBlob(c)); imgPages.push(n); } }
+    const scanned = per.filter(x=>x<120).length;
+    return {text,pages,images,imgPages,note:`PDF, ${pages} page(s); ${scanned} page(s) with little or no extractable text${images.length?`; images attached for page(s) ${imgPages.join(", ")} (read them visually, OCR any text)`:""}.`};
+  }
+  if(ext==="docx"){ const r=await mammoth.extractRawText({arrayBuffer:ab}); return {text:r.value,pages:null,images:[],note:"Word document (text extracted)."}; }
+  if(ext==="xlsx"||ext==="xls"){ const wb=XLSX.read(ab,{type:"array"}); let t=""; for(const n of wb.SheetNames){ t+=`\n--- Sheet: ${n} ---\n`+XLSX.utils.sheet_to_csv(wb.Sheets[n]); } return {text:t,pages:null,images:[],note:`Spreadsheet, ${wb.SheetNames.length} sheet(s) (as CSV).`}; }
+  if(["jpg","jpeg","png","webp"].includes(ext)){ if(!maxImg) return {text:"",images:[],note:"Image file, but image reading is not available in this view."}; return {text:"",pages:1,images:[await downscaleImage(rec.blob)],note:"Image file attached; read it visually and OCR all text."}; }
+  if(ext==="txt"||ext==="csv"){ return {text:new TextDecoder().decode(ab),images:[],note:"Plain text."}; }
+  return {text:"",images:[],note:"Unsupported format."};
+}
+
+/* ================= AI: per document ================= */
+const DOC_SCHEMA = `{
+ "document_title": string,
+ "dossier_point": "1.6.1"|"1.6.2"|"1.6.3"|"1.6.4"|"1.6.5"|"1.6.6"|"1.7.1"|"1.7.2"|"1.7.3"|"1.7.X"|"UNCLASSIFIED",
+ "label_subtype": "Carton"|"Blister_Foil"|"Pack_Insert"|"Inner_Label"|"Outer_Label"|null,
+ "other_category": string|null,
+ "classification_reason": string,
+ "product_name_in_document": string|null,
+ "matches_target_product": "yes"|"no"|"unclear"|"not_product_specific",
+ "match_reason": string,
+ "is_formal_certificate": true|false|null,
+ "certificate_disclaimer": string|null,
+ "issuing_authority": string|null, "reference_number": string|null,
+ "issue_date": string|null, "expiry_date": string|null, "review_date": string|null, "next_review_date": string|null, "validity_text": string|null,
+ "scope": string|null, "company_name": string|null, "site_address": string|null, "country": string|null,
+ "signature_or_stamp": "visible"|"not visible"|"unclear",
+ "batch_number": string|null, "mfg_date": string|null, "batch_expiry": string|null,
+ "facts": {"product_name":null,"common_name":null,"brand_name":null,"product_type":null,"dosage_form":null,"packaging_type":null,"pack_size":null,"shelf_life":null,"shelf_life_after_opening":null,"storage":null,"instructions_for_use":null,"country_of_origin":null,"manufacturer_name":null,"manufacturer_address":null,"phones":[],"emails":[],"registration_numbers":[]},
+ "ingredients": [{"name":string,"quantity":string,"unit":string,"form_or_source":string|null,"label_claim":string|null,"overage":string|null,"purpose":string|null}],
+ "sub_documents": [{"kind":string,"pages":string}],
+ "issues": [string]
+}`;
+function docPrompt(p,d,c){ return `You are a meticulous regulatory document analyst preparing a Tanzania Bureau of Standards (TBS) food supplement dossier.
+Target product entered by the user: "${p.name}"
+Today's date: ${todayISO()}
+File name: ${d.name}  (do NOT classify from the file name alone - read the content)
+Content note: ${c.note}
+
+Classify this ONE document into exactly one dossier point:
+1.6.1 product label / artwork (carton, blister foil, bottle label, pack insert or leaflet) - set label_subtype
+1.6.2 Certificate of Analysis of the finished product
+1.6.3 MSDS / SDS
+1.6.4 GMP certificate or GMP compliance evidence
+1.6.5 Free Sale Certificate
+1.6.6 Site Master File
+1.7.1 finished product specification and/or method of analysis
+1.7.2 composition / formula
+1.7.3 stability data and/or stability commitment letter
+1.7.X any other supporting document - name it in other_category (e.g. "Manufacturing Licence")
+UNCLASSIFIED if it truly cannot be determined.
+
+Rules:
+- Extract values EXACTLY as written in the document. Never guess or invent. Use null or [] when absent.
+- Dates as "YYYY-MM-DD", or "YYYY-MM" when only month and year are given. If validity is relative (e.g. "re-inspection two years from the date of this letter"), compute expiry_date and explain in validity_text.
+- is_formal_certificate (only for certificate-type documents): false if the document says it is not a certificate/licence (quote that sentence in certificate_disclaimer) or it is only a letter/report.
+- matches_target_product: "no" if the document is for a different product (different name, strength or composition than the target), "yes" if it is the target, "unclear" if uncertain, "not_product_specific" for site-level documents (SMF, GMP, licences).
+- ingredients: list EVERY ingredient shown (actives and excipients) with quantity per unit as written.
+- sub_documents: if the file contains several distinct documents (e.g. stability report plus commitment letter), list them with page numbers.
+- issues: short factual notes on problems inside THIS document: blank mandatory fields, missing dates/signatures, internal contradictions, typos in critical data.
+
+Reply with ONLY one JSON object in this shape:
+${DOC_SCHEMA}
+
+DOCUMENT CONTENT (extracted text${c.images.length?"; page images are attached":""}):
+`; }
+async function analyzeDoc(p,d,rec,signal){
+  const c=await extractContent(rec);
+  d.pages=c.pages||d.pages; d.textChars=c.text.length;
+  const head=docPrompt(p,d,c); const budget=PROMPT_BUDGET-bytesOf(head);
+  const body=clipBytes(c.text.trim()||"(no extractable text - rely on the attached images)",budget);
+  if(!c.text.trim() && !c.images.length) throw new Error("No readable content (and image reading unavailable).");
+  const opts={modelTier:S.settings.tier,signal}; if(c.images.length) opts.images=c.images;
+  const r=await SAMPLE.json(head+body,opts);
+  if(!r||typeof r!=="object") throw {code:"invalid_json"};
+  return r;
+}
+
+/* ================= AI: consolidation ================= */
+function compactAnalysis(p){
+  return p.docs.filter(d=>d.analysis&&d.kind!=="container").map(d=>{ const a=d.analysis; const e=effOf(d);
+    const o={document:d.name, point:e.point, subtype:e.sub, matches:e.match, title:a.document_title, product:a.product_name_in_document, match_reason:a.match_reason,
+      formal:a.is_formal_certificate, disclaimer:a.certificate_disclaimer, authority:a.issuing_authority, ref:a.reference_number, issue:a.issue_date, expiry:a.expiry_date, next_review:a.next_review_date, validity:a.validity_text,
+      scope:a.scope, company:a.company_name, site:a.site_address, country:a.country, batch:a.batch_number, mfg:a.mfg_date, batch_exp:a.batch_expiry, facts:a.facts, ingredients:a.ingredients, sub_docs:a.sub_documents, issues:a.issues};
+    return JSON.parse(JSON.stringify(o,(k,v)=>(v===null||(Array.isArray(v)&&!v.length))?undefined:v)); });
+}
+function consPrompt(p,data){ return `You are consolidating a Tanzania Bureau of Standards (TBS) Food Supplement dossier.
+Target product: "${p.name}". Today's date: ${todayISO()}.
+Below are structured extractions, one per uploaded document, including its dossier point and whether it matches the target product.
+
+Tasks:
+1. Fill every TBS form field listed below. Product-specific fields must come ONLY from documents whose "matches" is "yes" (or "unclear" when nothing better exists). Site/manufacturer fields may also use "not_product_specific" documents. Quote values as written. If usable documents disagree, give both values ("<doc A>: ... | <doc B>: ...") and add a conflict. If nothing is found, value = "${NA}". sources = document file names used.
+Fields: ${FORM_FIELDS.map(f=>f[0]+" "+f[1]).join("; ")}. (1.3: say "Food Supplement" only if a source says so; otherwise report how sources describe it.)
+2. ingredients: the complete list from the composition document (preferred), else label/COA. Include excipients. For each: name (with form/source/label claim if given), unit, value (quantity per unit dose as written), proportion_label (e.g. "Per tablet (1400 mg)"), proportion_unit (e.g. "% w/w"), proportion_value (calculate from the stated unit weight only if a unit weight is given in the documents, else ""), purpose (as written), source.
+3. conflicts across documents: product name, brand, composition, ingredient quantity, manufacturer name, address, manufacturing site, country, shelf life, storage, packaging, batch number, certificate numbers, dates, contact details, product description. ALSO flag documents that belong to a different product. Never decide which value is correct; action normally "Review required" plus a concrete next step.
+4. observations: up to 10 short factual regulatory observations (e.g. therapeutic claims on a food-supplement label, stability conditions vs climatic zone IVb, undated or unsigned documents, missing licence numbers).
+5. summary: 2-3 sentences on dossier readiness (document completeness only, never regulatory approval).
+
+Reply with ONLY this JSON:
+{"form":{"1.2":{"value":"","sources":[""]}},"ingredients":[{"name":"","unit":"","value":"","proportion_label":"","proportion_unit":"","proportion_value":"","purpose":"","source":""}],"conflicts":[{"severity":"critical|major|minor","field":"","doc_a":"","value_a":"","doc_b":"","value_b":"","action":""}],"observations":[""],"summary":""}
+
+EXTRACTIONS:
+${data}`; }
+async function consolidate(p,signal){
+  let data=compactAnalysis(p); let s=JSON.stringify(data);
+  const headBytes=bytesOf(consPrompt(p,"")); const room=PROMPT_BUDGET-headBytes;
+  if(bytesOf(s)>room){ data=data.map(o=>{ const x={...o}; delete x.issues; delete x.sub_docs; if(x.point!=="1.7.2"&&x.point!=="1.6.1") delete x.ingredients; if(x.facts&&x.facts.instructions_for_use) x.facts={...x.facts,instructions_for_use:String(x.facts.instructions_for_use).slice(0,500)}; return x;}); s=JSON.stringify(data); }
+  if(bytesOf(s)>room) s=clipBytes(s,room);
+  return await SAMPLE.json(consPrompt(p,s),{modelTier:S.settings.tier==="quick"?"default":S.settings.tier,signal});
+}
+
+/* ================= deterministic validation ================= */
+function effOf(d){ const a=d.analysis||{}; const o=d.override||{};
+  let point=o.point||a.dossier_point||"UNCLASSIFIED"; let sub=o.sub!==undefined?o.sub:a.label_subtype; if(point==="1.6.1"&&!LABEL_SUBS.includes(sub)) sub="Outer_Label"; if(point!=="1.6.1") sub=null;
+  return {point, sub, match:o.match||a.matches_target_product||"unclear", other:o.other||a.other_category||"Other Supporting Document", formal:a.is_formal_certificate}; }
+function validityOf(d){ const a=d.analysis; if(!a) return null; const t=todayD(); const win=S.settings.expiryDays;
+  const out={issue:a.issue_date||a.review_date||null, expiry:a.expiry_date||null, next:a.next_review_date||null, batchExp:a.batch_expiry||null, status:"NO EXPIRY STATED", key:"NOEXP", note:a.validity_text||""};
+  const ex=parseISO(out.expiry,true), nx=parseISO(out.next,true);
+  if(ex){ const dl=daysBetween(t,ex); if(dl<0){out.status="EXPIRED";out.key="EXPIRED";out.left=`expired ${-dl} days ago`;} else if(dl<=win){out.status="EXPIRING SOON";out.key="EXPIRING";out.left=`${dl} days left`;} else {out.status="VALID";out.key="VALID";out.left=`${dl} days left`;} }
+  if(nx){ const dl=daysBetween(t,nx); if(dl<0 && out.key!=="EXPIRED"){out.status="REVIEW OVERDUE";out.key="OVERDUE";out.left=`review overdue by ${-dl} days`;} else if(!ex){ out.status=dl<=win?"EXPIRING SOON":"VALID"; out.key=dl<=win?"EXPIRING":"VALID"; out.left=`review in ${dl} days`; } }
+  const be=parseISO(out.batchExp,true); if(be && !ex){ const dl=daysBetween(t,be); out.status = dl<0?"EXPIRED":dl<=win?"EXPIRING SOON":"VALID"; out.key=dl<0?"EXPIRED":dl<=win?"EXPIRING":"VALID"; out.left=dl<0?`batch expired ${-dl} days ago`:`batch expires in ${dl} days`; }
+  return out; }
+function compute(p){
+  const docs=p.docs.filter(d=>d.kind!=="container");
+  const analysed=docs.filter(d=>d.analysis);
+  const usable=analysed.filter(d=>{const e=effOf(d); return d.include!==false && e.match!=="no" && e.point!=="UNCLASSIFIED";});
+  const mism=analysed.filter(d=>effOf(d).match==="no" || d.include===false);
+  const unclassified=analysed.filter(d=>effOf(d).point==="UNCLASSIFIED" && effOf(d).match!=="no");
+  const byPoint=(pt,subs)=>usable.filter(d=>{const e=effOf(d); return e.point===pt && (!subs||subs.includes(e.sub));});
+  const mismFor=(pt,subs)=>mism.filter(d=>{const e=effOf(d); return e.point===pt && (!subs||subs.includes(e.sub));});
+  const crit=new Set(); (p.conflicts||[]).filter(c=>c.severity==="critical").forEach(c=>{crit.add(c.doc_a);crit.add(c.doc_b);});
+  const rows=[];
+  function mk(code,label,list,required,opts={}){
+    let status,key,remarks=[]; const vs=list.map(validityOf).filter(Boolean);
+    if(!list.length){ const m=mismFor(code,opts.subs); status=required?"PENDING":(opts.optional?"NOT APPLICABLE":"PENDING"); key=required?"PENDING":(opts.optional?"NA":"RECOMMENDED");
+      if(!required&&!opts.optional) remarks.push("Recommended - not uploaded"); if(opts.optional) remarks.push("Optional - not uploaded");
+      if(m.length) remarks.push("Uploaded file(s) belong to another product or were excluded: "+m.map(x=>x.name).join(", "));
+      if(required&&!m.length) remarks.push("Not available in uploaded documents"); }
+    else { status="AVAILABLE"; key="AVAILABLE";
+      if(code==="1.6.4" && list.every(d=>effOf(d).formal===false)){ status="AVAILABLE – SUPPORTING DOCUMENT"; key="SUPPORTING"; remarks.push("Formal GMP Certificate not identified"); const dis=list.map(d=>d.analysis.certificate_disclaimer).filter(Boolean)[0]; if(dis) remarks.push('Document states: "'+dis+'"'); }
+      if(vs.some(v=>v.key==="OVERDUE")){ status="OUTDATED"; key="OUTDATED"; remarks.push("Review date passed"); }
+      if(vs.some(v=>v.key==="EXPIRED")){ status="EXPIRED"; key="EXPIRED"; remarks.push("Expired"); }
+      if(vs.some(v=>v.key==="EXPIRING")) remarks.push("Expiring soon");
+      if(key==="AVAILABLE" && list.some(d=>crit.has(d.name))){ status="CONFLICT"; key="CONFLICT"; remarks.push("Critical conflict - see conflict report"); }
+      list.forEach(d=>(d.analysis.issues||[]).slice(0,2).forEach(i=>remarks.push(i))); }
+    const exp=vs.map(v=>v.expiry||v.next||v.batchExp).filter(Boolean)[0]||null;
+    rows.push({code,label,files:list,status,key,required,remarks,expiry:exp,folder:opts.folder,sub:opts.sub,pend:opts.pend});
+  }
+  mk("1.6.1","Outer label / Carton",byPoint("1.6.1",["Carton","Outer_Label"]),true,{subs:["Carton","Outer_Label"],folder:"1.6.1_Product_Label/Outer_Label",pend:"Outer label / carton artwork for the target product"});
+  mk("1.6.1","Inner label / Blister foil",byPoint("1.6.1",["Blister_Foil","Inner_Label"]),true,{subs:["Blister_Foil","Inner_Label"],folder:"1.6.1_Product_Label/Inner_Label",pend:"Inner label / blister foil (or container label) artwork for the target product"});
+  mk("1.6.1","Pack insert",byPoint("1.6.1",["Pack_Insert"]),false,{subs:["Pack_Insert"],optional:true});
+  for(const pt of POINTS.slice(1)){ const req = pt.add ? S.settings.req17 : true; mk(pt.code,pt.label,byPoint(pt.code),req,{folder:pt.folder,pend:pt.req}); }
+  const custom=[...new Set(usable.filter(d=>effOf(d).point==="1.7.X").map(d=>effOf(d).other))];
+  custom.forEach((c,i)=>mk("1.7."+(4+i),c,usable.filter(d=>effOf(d).point==="1.7.X"&&effOf(d).other===c),false,{folder:`1.7_Additional_Attachments/1.7.${4+i}_${slug(c)}`}));
+  (p.custom||[]).forEach(c=>{ if(!custom.includes(c)){ const i=custom.length; custom.push(c); mk("1.7."+(4+i),c,[],true,{folder:`1.7_Additional_Attachments/1.7.${4+i}_${slug(c)}`,pend:c}); } });
+  const reqRows=rows.filter(r=>r.required); const done=reqRows.filter(r=>r.files.length).length;
+  const pending=rows.filter(r=>r.required && !r.files.length).map(r=>({code:r.code,doc:r.pend||r.label,status:"PENDING",remark:r.remarks.join("; ")}));
+  rows.filter(r=>r.key==="SUPPORTING").forEach(r=>pending.push({code:r.code,doc:"Formal GMP Certificate",status:"PENDING – supporting document available",remark:r.remarks.join("; ")}));
+  rows.filter(r=>r.key==="OUTDATED"||r.key==="EXPIRED").forEach(r=>pending.push({code:r.code,doc:"Current version of "+r.label,status:r.status+" – update required",remark:r.files.map(f=>f.name).join(", ")}));
+  const validity=analysed.map(d=>({d,v:validityOf(d)})).filter(x=>x.v && (x.v.expiry||x.v.next||x.v.issue||x.v.batchExp));
+  const vWarn=validity.filter(x=>["EXPIRED","OVERDUE","EXPIRING"].includes(x.v.key)).length;
+  const conflicts=[...(p.conflicts||[])];
+  const autoConf=mism.filter(d=>effOf(d).match==="no").map(d=>({severity:"critical",field:"Product identity",doc_a:d.name,value_a:(d.analysis.product_name_in_document||"different product")+(d.analysis.match_reason?" – "+d.analysis.match_reason:""),doc_b:"Target product",value_b:p.name,action:"Review required – excluded from dossier folders and moved to 99_For_Review; upload the correct document",auto:true}));
+  autoConf.forEach(a=>{ if(!conflicts.some(c=>c.doc_a===a.doc_a&&/product/i.test(c.field))) conflicts.unshift(a); });
+  const warnings=conflicts.length+vWarn+rows.filter(r=>r.key==="SUPPORTING").length;
+  const ready = docs.length>0 && analysed.length===docs.length && pending.length===0 && !conflicts.some(c=>c.severity==="critical");
+  return {rows,pending,validity,conflicts,usable,mism,unclassified,docs,analysed,progress:reqRows.length?Math.round(done/reqRows.length*100):0,done,total:reqRows.length,warnings,ready};
+}
+function statusKey(s){ return {"AVAILABLE":"AVAILABLE","AVAILABLE – SUPPORTING DOCUMENT":"SUPPORTING","PENDING":"PENDING","EXPIRED":"EXPIRED","OUTDATED":"OUTDATED","CONFLICT":"CONFLICT","NOT APPLICABLE":"NA"}[s]||"NA"; }
+const badge=(txt,key)=>`<span class="badge b-${key||statusKey(txt)}">${esc(txt)}</span>`;
+
+/* ================= analysis runner ================= */
+async function runAnalysis(p,{force=false}={}){
+  if(!AI_READY){ toast("AI is unavailable in this view. Check the server's ANTHROPIC_API_KEY."); return; }
+  if(S.running) return;
+  const ctl=new AbortController(); S.running={pid:p.id,ctl,done:0,total:0,phase:"Reading documents"}; S.log=[];
+  const log=m=>{ S.log.push(new Date().toLocaleTimeString()+"  "+m); renderIfDossier(); };
+  const files=await idbFiles(p.id); const fmap=Object.fromEntries(files.map(f=>[f.id,f]));
+  const todo=p.docs.filter(d=>d.kind!=="container" && (force||!d.analysis));
+  S.running.total=todo.length; let added=todo.length;
+  try{
+    for(const d of todo){
+      if(ctl.signal.aborted) throw {code:"cancelled"};
+      d.status="analyzing"; d.error=null; log(`Reading and analysing ${d.name}…`); renderIfDossier();
+      try{ d.analysis=await analyzeDoc(p,d,fmap[d.id],ctl.signal); d.status="done"; d.analyzedAt=Date.now(); const e=effOf(d); log(`✓ ${d.name} → ${e.point}${e.sub?" / "+e.sub:""}${e.match==="no"?" (different product)":""}`); }
+      catch(e){ if(e&&e.code==="cancelled") throw e; d.status="error"; d.error=e&&e.code?aiErr(e):(e&&e.message)||"Failed"; log(`✗ ${d.name}: ${d.error}`); if(e&&(e.code==="not_granted"||e.code==="rate_limited")) throw e; }
+      S.running.done++; await saveProject(p);
+    }
+    if(p.docs.some(d=>d.analysis)){
+      S.running.phase="Cross-checking documents"; log("Cross-checking all documents, extracting form, composition and conflicts…"); renderIfDossier();
+      const r=await consolidate(p,ctl.signal);
+      if(r&&r.form){ for(const [k,v] of Object.entries(r.form)){ if(!p.formEdited[k]) p.form[k]=v; } }
+      if(Array.isArray(r.ingredients) && !p.ingredientsEdited) p.ingredients=r.ingredients;
+      p.conflicts=Array.isArray(r.conflicts)?r.conflicts:[]; p.observations=Array.isArray(r.observations)?r.observations:[]; p.summary=r.summary||"";
+      log(`✓ Form extracted; ${p.conflicts.length} conflict(s), ${p.observations.length} observation(s).`);
+    }
+    p.analyzedAt=Date.now(); p.stale=true; p.version=(p.version||0)+1;
+    const c=compute(p); p.versions.push({n:p.version,date:Date.now(),note:force?"Full re-analysis":`Analysed ${added} new document(s)`,docs:c.docs.length,pending:c.pending.length,warnings:c.warnings,progress:c.progress,snapshot:snapshotOf(p)});
+    await saveProject(p); log("Validation complete. Generate the ZIP when ready."); toast("Analysis complete – version "+p.version);
+  }catch(e){ log("Stopped: "+aiErr(e)); p.docs.forEach(d=>{ if(d.status==="analyzing") d.status=d.analysis?"done":"uploaded"; }); await saveProject(p); toast(aiErr(e)); }
+  finally{ S.running=null; if(S.view==="new"&&S.pid===p.id){ S.view="dossier"; S.tab="Overview"; } render(); }
+}
+function snapshotOf(p){ return JSON.parse(JSON.stringify({form:p.form,ingredients:p.ingredients,conflicts:p.conflicts,observations:p.observations,docs:p.docs.map(d=>({name:d.name,point:effOf(d).point,sub:effOf(d).sub,match:effOf(d).match}))})); }
+function renderIfDossier(){ if(S.view==="dossier"||S.view==="new") render(); }
+
+/* ================= uploads ================= */
+async function addFiles(p,fileList){
+  const list=[...fileList]; if(!list.length) return;
+  S.uploads=list.map(f=>({name:f.name,size:f.size,pct:0,state:"Queued"})); render();
+  const existing=new Set(p.docs.map(d=>d.name+"|"+d.size));
+  for(let i=0;i<list.length;i++){ const f=list[i]; const u=S.uploads[i]; const ext=extOf(f.name);
+    if(!ACCEPT.includes(ext)){ u.state="Rejected: file type"; u.bad=true; render(); continue; }
+    if(f.size>MAX_FILE){ u.state="Rejected: over 60 MB"; u.bad=true; render(); continue; }
+    if(existing.has(f.name+"|"+f.size)){ u.state="Skipped: already uploaded"; u.pct=100; render(); continue; }
+    u.state="Uploading"; render();
+    const blob=await readWithProgress(f,pct=>{u.pct=pct; updateUpRow(i);});
+    const id=uid(); await idbPut("files",{id,pid:p.id,name:f.name,size:f.size,type:f.type,blob,addedAt:Date.now()});
+    if(ext==="zip"){ p.docs.push({id,name:f.name,size:f.size,ext,kind:"container",addedAt:Date.now(),status:"stored"});
+      try{ const z=await JSZip.loadAsync(blob); let n=0; for(const entry of Object.values(z.files)){ if(entry.dir) continue; const nm=entry.name.split("/").pop(); if(!nm||nm.startsWith(".")||entry.name.includes("__MACOSX")) continue; const e2=extOf(nm); if(!ACCEPT.includes(e2)||e2==="zip") continue;
+          const b=await entry.async("blob"); const cid=uid(); await idbPut("files",{id:cid,pid:p.id,name:nm,size:b.size,type:"",blob:b,addedAt:Date.now(),parent:id}); p.docs.push({id:cid,name:nm,size:b.size,ext:e2,parent:f.name,addedAt:Date.now(),status:"uploaded"}); n++; }
+        u.state=`Unpacked ${n} file(s)`; }catch{ u.state="ZIP could not be opened"; u.bad=true; }
+    } else { p.docs.push({id,name:f.name,size:f.size,ext,addedAt:Date.now(),status:"uploaded"}); u.state="Uploaded"; }
+    u.pct=100; existing.add(f.name+"|"+f.size); await saveProject(p); render();
+  }
+  p.stale=true; await saveProject(p); render();
+}
+function readWithProgress(f,cb){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onprogress=e=>{ if(e.lengthComputable) cb(Math.round(e.loaded/e.total*100)); }; r.onload=()=>res(new Blob([r.result],{type:f.type})); r.onerror=()=>rej(r.error); r.readAsArrayBuffer(f); }); }
+function updateUpRow(i){ const el=document.querySelector(`[data-up="${i}"] .pb i`); if(el) el.style.width=S.uploads[i].pct+"%"; }
+
+/* ================= clean file names & folders ================= */
+function planFiles(p,c){
+  const P=slug(p.name).toUpperCase(); const used=new Set(); const out=[];
+  const uniq=(path)=>{ let q=path,n=2; while(used.has(q)){ q=path.replace(/(\.[^.\/]+)$/,`_${n}$1`); n++; } used.add(q); return q; };
+  for(const d of c.docs){ if(!d.analysis) { out.push({d,path:uniq(`99_For_Review_Not_Part_of_Submission/${d.name}`),reason:"Not analysed"}); continue; }
+    const e=effOf(d); const ext=d.ext||extOf(d.name);
+    if(e.match==="no"||d.include===false){ out.push({d,path:uniq(`99_For_Review_Not_Part_of_Submission/${d.name}`),reason:e.match==="no"?"Different product":"Excluded by user"}); continue; }
+    if(e.point==="UNCLASSIFIED"){ out.push({d,path:uniq(`99_For_Review_Not_Part_of_Submission/${d.name}`),reason:"Unclassified"}); continue; }
+    let folder,base;
+    if(e.point==="1.6.1"){ folder=`1.6.1_Product_Label/${e.sub}`; base=`${P}_${SUB_FILE[e.sub]}`; }
+    else if(e.point==="1.7.X"){ const r=c.rows.find(r=>r.label===e.other); folder=r?r.folder:`1.7_Additional_Attachments/${slug(e.other)}`; base=`${P}_${slug(e.other)}`; }
+    else { const pt=POINTS.find(x=>x.code===e.point); folder=pt.folder;
+      if(e.point==="1.6.6") base="Manufacturer_Site_Master_File"+(d.analysis.reference_number?"_"+slug(d.analysis.reference_number):"");
+      else if(e.point==="1.6.4") base=(e.formal===false?"GMP_Compliance_Supporting_Letter":"GMP_Certificate")+(d.analysis.reference_number?"_"+slug(d.analysis.reference_number):"");
+      else if(e.point==="1.6.2") base=`${P}_Certificate_of_Analysis`+(d.analysis.batch_number?"_Batch_"+slug(d.analysis.batch_number):"");
+      else if(e.point==="1.7.3") base=`${P}_`+(/commitment/i.test(d.analysis.document_title||"")&&!/data|report/i.test(d.analysis.document_title||"")?"Stability_Commitment_Letter":"Stability_Data");
+      else base=`${P}_${pt.file}`; }
+    out.push({d,path:uniq(`${folder}/${base}.${ext}`)}); }
+  return out;
+}
+function pendingTxt(r,p){ return `PENDING DOCUMENT
+
+Product:
+${p.name}
+
+Dossier Point:
+${r.code}
+
+Required:
+${r.pend||r.label}
+
+Status:
+Not available in uploaded documents.
+${r.remarks.filter(x=>/another product/i.test(x)).map(x=>"\nNote:\n"+x+"\n").join("")}
+Action:
+Upload the document and regenerate the dossier.
+Generated: ${new Date().toLocaleString()}
+`; }
+
+/* ================= reports ================= */
+function reportStatus(p,c){ return csvOf([["Dossier Point","Required Document","Uploaded","Status","File Name","Expiry Date","Remarks"],...c.rows.map(r=>[r.code,r.label,r.files.length?"Yes":"No",r.status,r.files.map(f=>f.name).join("; "),r.expiry||"",r.remarks.join("; ")])]); }
+function reportPending(p,c){ return csvOf([["#","Dossier Point","Document","Status","Remarks"],...c.pending.map((x,i)=>[i+1,x.code,x.doc,x.status,x.remark])]); }
+function reportConflicts(p,c){ return csvOf([["Severity","Field","Document A","Value A","Document B","Value B","Action"],...c.conflicts.map(x=>[x.severity,x.field,x.doc_a,x.value_a,x.doc_b,x.value_b,x.action])]); }
+function reportExpiry(p,c){ return csvOf([["Document","Dossier Point","Issue / Review date","Expiry date","Next review date","Batch expiry","Status","Time","Basis"],...c.validity.map(({d,v})=>[d.name,effOf(d).point,v.issue||"",v.expiry||"",v.next||"",v.batchExp||"",v.status,v.left||"",v.note||""])]); }
+function qcChecks(p,c){ const has=code=>c.rows.filter(r=>r.code===code).some(r=>r.files.length);
+  return [["All uploaded files processed",c.analysed.length===c.docs.length],["All files classified",c.unclassified.length===0&&c.analysed.length===c.docs.length],["Product information extracted",!!(p.form["1.2"])],["Composition extracted",(p.ingredients||[]).length>0],["Manufacturer details extracted",!!p.form["3.1"]],
+  ["Labels checked",c.rows.filter(r=>r.code==="1.6.1").every(r=>r.files.length||!r.required)],["COA checked",has("1.6.2")],["MSDS checked",has("1.6.3")],["GMP checked",has("1.6.4")],["FSC checked",has("1.6.5")],["SMF checked",has("1.6.6")],
+  ["Additional documents checked",["1.7.1","1.7.2","1.7.3"].every(has)],["Expiry dates checked",true],["Conflicts checked",!!p.analyzedAt],["Missing documents identified",true],["DOCX generated",true],["Folder structure created",true],["PENDING.txt generated where necessary",true],["Final ZIP generated",true]]; }
+
+/* ================= DOCX ================= */
+async function buildDocx(p,c){
+  const D=window.docx; if(!D) throw new Error("Word generator failed to load");
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,ShadingType,AlignmentType,BorderStyle,Header,Footer,PageNumber,HeadingLevel,PageBreak,PageOrientation}=D;
+  const W=14400, F="Arial"; const bd={style:BorderStyle.SINGLE,size:4,color:"9AA3B5"}; const borders={top:bd,bottom:bd,left:bd,right:bd};
+  const FILL={AVAILABLE:"D9F0E3",SUPPORTING:"FFF0C8",PENDING:"FBD9D5",EXPIRED:"FBD9D5",CONFLICT:"FBD9D5",OUTDATED:"F9DCC6",EXPIRING:"FFF0C8",VALID:"D9F0E3",OVERDUE:"F9DCC6",critical:"FBD9D5",major:"F9DCC6",minor:"FFF0C8"};
+  const t=(s,o={})=>new TextRun({text:String(s??""),font:F,size:o.size||17,bold:o.bold,italics:o.it,color:o.color});
+  const para=(s,o={})=>new Paragraph({spacing:{before:o.before??20,after:o.after??20},alignment:o.align,children:[t(s,o)]});
+  const cell=(v,w,o={})=>new TableCell({borders,width:{size:w,type:WidthType.DXA},margins:{top:50,bottom:50,left:80,right:80},shading:o.fill?{fill:o.fill,type:ShadingType.CLEAR,color:"auto"}:undefined,
+    children:String(v??"").split("\n").map(x=>para(x,{bold:o.bold,color:o.color,size:o.size}))});
+  const table=(cols,head,rows,fillCol)=>new Table({width:{size:W,type:WidthType.DXA},columnWidths:cols,rows:[new TableRow({tableHeader:true,children:head.map((h,i)=>cell(h,cols[i],{bold:true,fill:"16213E",color:"FFFFFF"}))}),
+    ...rows.map(r=>new TableRow({children:r.map((v,i)=>cell(v,cols[i],{fill:fillCol&&fillCol[0]===i?FILL[fillCol[1](r)]:undefined}))}))]});
+  const kv=(rows,c1=3800)=>new Table({width:{size:W,type:WidthType.DXA},columnWidths:[c1,W-c1],rows:rows.map(([k,v])=>new TableRow({children:[cell(k,c1,{bold:true,fill:"EEF0FF"}),cell(v,W-c1)]}))});
+  const H=(s)=>new Paragraph({heading:HeadingLevel.HEADING_1,spacing:{before:260,after:100},children:[new TextRun({text:s,font:F,size:26,bold:true,color:"16213E"})]});
+  const brk=()=>new Paragraph({children:[new PageBreak()]});
+  const fv=k=>{ const f=p.form[k]; if(!f) return NA; const v=typeof f==="string"?f:(f.value||NA); const s=f.sources&&f.sources.length?"\nSource: "+f.sources.join("; "):""; return v+s; };
+  const ch=[];
+  ch.push(new Paragraph({spacing:{before:1400,after:120},alignment:AlignmentType.CENTER,children:[new TextRun({text:"TBS FOOD SUPPLEMENT DOSSIER",font:F,size:44,bold:true,color:"16213E"})]}));
+  ch.push(para("Template Guideline for Dossier Submission of Food Supplements – Tanzania Bureau of Standards",{align:AlignmentType.CENTER,size:22,after:500}));
+  ch.push(kv([["Product",p.name],["Brand",fv("1.5.1")],["Manufacturer",fv("3.1")],["Dossier status",(c.ready?"DOCUMENT SET COMPLETE":"PARTIALLY COMPLETE")+" – document preparation status only; not regulatory approval"],["Progress",`${c.done} of ${c.total} required dossier points supplied (${c.progress}%)`],["Version / date",`Version ${p.version||1} – ${new Date().toLocaleDateString("en-GB")}`],["Summary",p.summary||"—"]]));
+  ch.push(brk());
+  ch.push(H("1. Product Details, Product Particulars and Brand Details")); ch.push(kv(FORM_FIELDS.filter(f=>!f[0].startsWith("3")).map(([k,l])=>[k+" "+l,fv(k)])));
+  ch.push(H("2.0 Ingredient / Composition"));
+  ch.push(table([500,4200,900,1300,2000,1200,1500,2800],["Sr.","Ingredient Name","Unit","Value","Ingredient Proportion","Proportion Unit","Proportion Value","Purpose of Use"],(p.ingredients||[]).map((r,i)=>[i+1,r.name,r.unit,r.value,r.proportion_label,r.proportion_unit,r.proportion_value,r.purpose])));
+  if(!(p.ingredients||[]).length) ch.push(para(NA,{it:true}));
+  ch.push(H("3.0 Manufacturer Details")); ch.push(kv(FORM_FIELDS.filter(f=>f[0].startsWith("3")).map(([k,l])=>[k+" "+l,fv(k)])));
+  ch.push(brk()); ch.push(H("4. Document Checklist and Status"));
+  ch.push(table([1100,2600,1100,2200,3000,1300,3100],["Dossier Point","Required Document","Uploaded","Status","File Name","Expiry","Remarks"],c.rows.map(r=>[r.code,r.label,r.files.length?"Yes":"No",r.status,r.files.map(f=>f.name).join("\n"),fmtPlain(r.expiry),r.remarks.join("\n")]),[3,r=>statusKey(r[3])]));
+  ch.push(H("5. Pending Documents"));
+  ch.push(c.pending.length?table([600,1400,6400,2600,3400],["#","Point","Document","Status","Remarks"],c.pending.map((x,i)=>[i+1,x.code,x.doc,x.status,x.remark])):para("No pending documents.",{it:true}));
+  ch.push(H("6. Expiry / Validity Report (as of "+new Date().toLocaleDateString("en-GB")+")"));
+  ch.push(c.validity.length?table([3600,900,1500,1500,1500,1800,3600],["Document","Point","Issue / Review","Expiry","Next Review","Status","Remarks"],c.validity.map(({d,v})=>[d.name,effOf(d).point,fmtPlain(v.issue),fmtPlain(v.expiry||v.batchExp),fmtPlain(v.next),v.status,(v.left||"")+(v.note?"\n"+v.note:"")]),[5,r=>({"EXPIRED":"EXPIRED","REVIEW OVERDUE":"OVERDUE","EXPIRING SOON":"EXPIRING","VALID":"VALID"}[r[5]])]):para("No dated documents found.",{it:true}));
+  ch.push(brk()); ch.push(H("7. Conflict / Discrepancy Report"));
+  ch.push(para("No conflict has been resolved automatically. Where the documents do not establish which value is correct, both are shown.",{it:true,color:"555555"}));
+  c.conflicts.forEach((x,i)=>{ ch.push(para("",{})); ch.push(kv([["Conflict "+(i+1)+" – severity",String(x.severity||"").toUpperCase()],["Field",x.field],["Document A",x.doc_a],["Value A",x.value_a],["Document B",x.doc_b],["Value B",x.value_b],["Action",x.action||"Review required"]],3000)); });
+  if(!c.conflicts.length) ch.push(para("No conflicts detected.",{it:true}));
+  ch.push(H("8. Regulatory Observations"));
+  ch.push((p.observations||[]).length?table([800,W-800],["#","Observation"],p.observations.map((o,i)=>["R-"+String(i+1).padStart(2,"0"),o])):para("None recorded.",{it:true}));
+  ch.push(H("9. Final Submission Checklist"));
+  ch.push(table([6000,W-6000],["Check","Result"],qcChecks(p,c).map(([k,v])=>[k,v?"Done":"Not complete"])));
+  ch.push(H("10. Source Document Register"));
+  const plan=planFiles(p,c);
+  ch.push(table([3600,900,1400,3200,5300],["Original file","Pages","Dossier point","Content identified","Dossier file"],plan.map(x=>[x.d.name+(x.d.parent?"\n(from "+x.d.parent+")":""),x.d.pages||"—",x.d.analysis?effOf(x.d).point:"—",(x.d.analysis?.document_title||"")+(x.reason?"\n"+x.reason:""),x.path])));
+  ch.push(para("",{})); ch.push(para("This document records document availability and consistency. It does not certify regulatory compliance and does not constitute approval by TBS or any authority.",{it:true,color:"555555"}));
+  const doc=new Document({styles:{default:{document:{run:{font:F,size:17}}}},sections:[{properties:{page:{size:{width:11906,height:16838,orientation:PageOrientation.LANDSCAPE},margin:{top:900,bottom:900,left:1000,right:1000}}},
+    headers:{default:new Header({children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[t("TBS Food Supplement Dossier – "+p.name,{size:15,color:"7F7F7F"})]})]})},
+    footers:{default:new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[t("Page ",{size:15,color:"7F7F7F"}),new TextRun({children:[PageNumber.CURRENT],font:F,size:15,color:"7F7F7F"}),t(" of ",{size:15,color:"7F7F7F"}),new TextRun({children:[PageNumber.TOTAL_PAGES],font:F,size:15,color:"7F7F7F"}),t("  –  document status only, not regulatory approval",{size:15,color:"7F7F7F"})]})]})},
+    children:ch}]});
+  return await Packer.toBlob(doc);
+}
+
+/* ================= ZIP ================= */
+async function buildZip(p){
+  const c=compute(p); const root=`TBS_Dossier_${slug(p.name)}`; const z=new JSZip(); const R=z.folder(root);
+  const files=await idbFiles(p.id); const fmap=Object.fromEntries(files.map(f=>[f.id,f]));
+  const docxBlob=await buildDocx(p,c); R.file(`00_TBS_Dossier_Form_${slug(p.name)}.docx`,docxBlob);
+  ["1.6.1_Product_Label/Inner_Label","1.6.1_Product_Label/Outer_Label","1.6.1_Product_Label/Carton","1.6.1_Product_Label/Blister_Foil","1.6.1_Product_Label/Pack_Insert",...POINTS.slice(1).map(x=>x.folder)].forEach(f=>R.folder(f));
+  const plan=planFiles(p,c); let log=`SOURCE TRACEABILITY LOG – ${p.name}\nGenerated: ${new Date().toLocaleString()}\nOriginal files are copied unchanged. SHA-256 of each copy equals the stored original.\n\n`;
+  for(const x of plan){ const f=fmap[x.d.id]; if(!f) continue; R.file(x.path,f.blob); log+=`Original : ${x.d.name}${x.d.parent?" (from "+x.d.parent+")":""}\nDossier  : ${x.path}\nPoint    : ${x.d.analysis?effOf(x.d).point:"not analysed"}${x.reason?" – "+x.reason:""}\nSHA-256  : ${await sha256(f.blob)}\n\n`; }
+  let pend=0; for(const r of c.rows){ if(r.required && !r.files.length && r.folder){ R.file(r.folder+"/PENDING.txt",pendingTxt(r,p)); pend++; } }
+  c.rows.filter(r=>r.key==="SUPPORTING").forEach(r=>{ R.file("1.6.4_GMP_Certificate/PENDING.txt",`PENDING DOCUMENT\n\nDossier Point:\n1.6.4\n\nRequired:\nFormal GMP Certificate\n\nStatus:\nOnly a supporting document is available (${r.files.map(f=>f.name).join(", ")}).\n${r.remarks.join("\n")}\n\nAction:\nUpload a formal GMP certificate and regenerate the dossier.\n`); pend++; });
+  c.rows.filter(r=>r.key==="OUTDATED"||r.key==="EXPIRED").forEach(r=>R.file((r.folder||"")+"/REVIEW_REQUIRED.txt",`${r.status}: ${r.label}\nFiles: ${r.files.map(f=>f.name).join(", ")}\n${r.remarks.join("\n")}\n\nAction: obtain the current version and regenerate the dossier.\n`));
+  if(plan.some(x=>x.path.startsWith("99_"))) R.file("99_For_Review_Not_Part_of_Submission/README.txt",`These files are NOT part of the ${p.name} submission.\n\n`+plan.filter(x=>x.path.startsWith("99_")).map(x=>`- ${x.d.name}: ${x.reason}${x.d.analysis?.product_name_in_document?" (document product: "+x.d.analysis.product_name_in_document+")":""}`).join("\n")+`\n\nRetained for traceability. Remove this folder before submission.\n`);
+  R.file("Source_Traceability_Log.txt",log);
+  R.file("Reports/Document_Status_Report.csv",reportStatus(p,c)); R.file("Reports/Pending_Documents.csv",reportPending(p,c)); R.file("Reports/Conflict_Report.csv",reportConflicts(p,c)); R.file("Reports/Expiry_Report.csv",reportExpiry(p,c));
+  const blob=await z.generateAsync({type:"blob",compression:"DEFLATE"});
+  return {blob,docxBlob,pend,c,name:`${root}_FINAL.zip`};
+}
+async function doGenerate(p,kind){
+  if(!p.analyzedAt){ toast("Analyse the documents first."); return; }
+  try{ toast(kind==="zip"?"Building ZIP…":"Building Word file…",1500);
+    if(kind==="zip"){ const r=await buildZip(p); if(await save(r.name,r.blob)){ p.generated.unshift({kind:"ZIP",name:r.name,date:Date.now(),version:p.version,size:r.blob.size,pending:r.pend}); p.stale=false; await saveProject(p); render(); } }
+    else { const c=compute(p); const b=await buildDocx(p,c); const nm=`00_TBS_Dossier_Form_${slug(p.name)}.docx`; if(await save(nm,b)){ p.generated.unshift({kind:"DOCX",name:nm,date:Date.now(),version:p.version,size:b.size}); await saveProject(p); render(); } }
+  }catch(e){ console.error(e); toast("Could not build the file: "+(e.message||e)); }
+}
+async function doReport(p,which){ const c=compute(p); const map={status:["Document_Status_Report",reportStatus],pending:["Pending_Documents",reportPending],conflict:["Conflict_Report",reportConflicts],expiry:["Expiry_Report",reportExpiry]}; const [n,fn]=map[which]; const nm=`${slug(p.name)}_${n}.csv`; if(await save(nm,fn(p,c))){ p.generated.unshift({kind:"CSV",name:nm,date:Date.now(),version:p.version}); await saveProject(p); render(); } }
+
+/* ================= chat ================= */
+async function askChat(p,q){
+  if(!AI_READY){ toast("AI is not configured on this server."); return; }
+  const c=compute(p);
+  const ctx={product:p.name,version:p.version,analysed_at:p.analyzedAt?new Date(p.analyzedAt).toISOString():null,today:todayISO(),
+    status:c.rows.map(r=>({point:r.code,document:r.label,status:r.status,files:r.files.map(f=>f.name),expiry:r.expiry,remarks:r.remarks})),
+    pending:c.pending, conflicts:c.conflicts, validity:c.validity.map(({d,v})=>({doc:d.name,status:v.status,issue:v.issue,expiry:v.expiry,next_review:v.next,note:v.note,left:v.left})),
+    form:p.form, ingredients:p.ingredients, observations:p.observations,
+    documents:c.docs.map(d=>({file:d.name,point:d.analysis?effOf(d).point:"not analysed",subtype:d.analysis?effOf(d).sub:null,matches_product:d.analysis?effOf(d).match:null,title:d.analysis?.document_title,formal_certificate:d.analysis?.is_formal_certificate,disclaimer:d.analysis?.certificate_disclaimer,authority:d.analysis?.issuing_authority,reference:d.analysis?.reference_number,reason:d.analysis?.classification_reason,issues:d.analysis?.issues}))};
+  const RULES=`You are the assistant inside "TBS Dossier Builder". Answer ONLY from the project data below, which was extracted from the user's uploaded documents. If the answer is not in the data, say it is not available in the uploaded documents. Never invent regulatory information and never claim regulatory approval. Be concise; use short lists when helpful; name the files you rely on.\n\nPROJECT DATA:\n`+clipBytes(JSON.stringify(ctx),PROMPT_BUDGET-8000);
+  p.chat.push({role:"user",content:q}); p.chat.push({role:"assistant",content:"…",pending:true}); render(); scrollChat();
+  const turns=p.chat.filter(m=>!m.pending).slice(-10).map(m=>({role:m.role,content:m.content}));
+  while(turns.length && turns[0].role!=="user") turns.shift();
+  const last=p.chat[p.chat.length-1];
+  try{ const r=await SAMPLE([{role:"user",content:RULES},...turns],{cache:false,modelTier:"default",onText:({text})=>{ last.content=text; const el=document.querySelector(".msg.a:last-child"); if(el) el.textContent=text; scrollChat(); }}); last.content=r.text; }
+  catch(e){ last.content=e.text||aiErr(e); }
+  delete last.pending; await saveProject(p); render(); scrollChat();
+}
+function scrollChat(){ const m=document.querySelector(".msgs"); if(m) m.scrollTop=m.scrollHeight; }
+
+/* ================= preview ================= */
+async function preview(p,d){
+  const rec=await idbGet("files",d.id); if(!rec) return;
+  const root=document.getElementById("modalRoot");
+  root.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-label="Preview ${esc(d.name)}"><div class="box"><div class="row"><h2 style="margin:0">${esc(d.name)}</h2><span class="spacer"></span><button class="btn sm" data-act="dl-orig" data-id="${d.id}">Download original</button><button class="btn sm" data-act="close-modal">Close</button></div>
+  ${d.analysis?`<p class="small muted">${esc(d.analysis.document_title||"")} · ${esc(effOf(d).point)} · ${esc(d.analysis.classification_reason||"")}</p>`:""}<div class="preview" id="pv"><p class="muted">Loading preview…</p></div></div></div>`;
+  const pv=document.getElementById("pv"); const ext=extOf(d.name);
+  try{ if(ext==="pdf"){ const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await rec.blob.arrayBuffer())}).promise; pv.innerHTML=`<p class="small muted">${pdf.numPages} page(s)${pdf.numPages>8?" – showing first 8":""}</p>`; for(let i=1;i<=Math.min(8,pdf.numPages);i++){ pv.appendChild(await renderPdfPage(pdf,i,1100)); } }
+    else if(["jpg","jpeg","png","webp"].includes(ext)){ const u=URL.createObjectURL(rec.blob); pv.innerHTML=`<img src="${u}" alt="${esc(d.name)}">`; }
+    else { const c=await extractContent(rec); pv.innerHTML=`<pre class="log" style="max-height:60vh">${esc(c.text.slice(0,20000))}</pre>`; } }
+  catch(e){ pv.innerHTML=`<p class="na">Preview failed: ${esc(e.message||e)}</p>`; }
+}
+
+/* ================= rendering ================= */
+const NAV=[["dashboard","Dashboard"],["new","New Dossier"],["dossiers","My Dossiers"],["documents","Documents"],["pending","Pending Documents"],["reports","Validation Reports"],["generated","Generated Files"],["settings","Settings"]];
+function renderNav(){ const totPend=S.projects.reduce((a,p)=>a+(p.analyzedAt?compute(p).pending.length:0),0);
+  document.getElementById("nav").innerHTML=NAV.map(([k,l])=>`<button data-nav="${k}" ${S.view===k||(k==="dossiers"&&S.view==="dossier")?'aria-current="page"':""}>${esc(l)}${k==="pending"&&totPend?`<span class="count">${totPend}</span>`:""}${k==="dossiers"&&S.projects.length?`<span class="count">${S.projects.length}</span>`:""}</button>`).join(""); }
+function aiNotice(){ if(AI_READY) return ""; if(!S.capsLoaded) return `<div class="notice">Connecting to the AI service…</div>`; return `<div class="notice warn">AI is not configured on this server. Add ANTHROPIC_API_KEY in Vercel → Project → Settings → Environment Variables and redeploy. Uploading, editing and exports still work.</div>`; }
+function render(){
+  renderNav(); const v=document.getElementById("view"); const fns={dashboard:vDashboard,new:vNew,dossiers:vDossiers,documents:vDocuments,pending:vPending,reports:vReports,generated:vGenerated,settings:vSettings,dossier:vDossier};
+  const active=document.activeElement; const keep=active&&active.dataset&&active.dataset.keep?{k:active.dataset.keep,s:active.selectionStart,e:active.selectionEnd}:null;
+  v.innerHTML=(fns[S.view]||vDashboard)();
+  if(keep){ const el=v.querySelector(`[data-keep="${keep.k}"]`); if(el){ el.focus(); try{el.setSelectionRange(keep.s,keep.e);}catch{} } }
+  document.getElementById("side").classList.remove("open");
+}
+function dossierCard(p){ const c=compute(p);
+  return `<div class="card dcard"><div class="row"><div><h3>${esc(p.name)}</h3><div class="meta">Version ${p.version||0} · updated ${new Date(p.updatedAt).toLocaleDateString("en-GB")}</div></div><span class="spacer"></span>${c.ready?badge("Ready","AVAILABLE"):p.analyzedAt?badge("In progress","SUPPORTING"):badge("Not analysed","NA")}</div>
+  <div class="bar" aria-label="Progress ${c.progress}%"><i style="width:${c.progress}%"></i></div><div class="small muted">${c.progress}% of required dossier points</div>
+  <div class="kv3"><div><b>${c.done} / ${c.total}</b>Documents</div><div><b>${p.analyzedAt?c.pending.length:"—"}</b>Pending</div><div><b>${p.analyzedAt?c.warnings:"—"}</b>Warnings</div></div>
+  <div class="row"><button class="btn sm primary" data-act="open" data-id="${p.id}">View dossier</button><button class="btn sm" data-act="upload-more" data-id="${p.id}">Upload more</button><button class="btn sm" data-act="validate" data-id="${p.id}" ${S.running?"disabled":""}>Validate</button><button class="btn sm" data-act="zip" data-id="${p.id}">Generate ZIP</button></div></div>`; }
+function vDashboard(){ const cs=S.projects.map(p=>({p,c:compute(p)}));
+  const docs=cs.reduce((a,x)=>a+x.c.docs.length,0), pend=cs.reduce((a,x)=>a+(x.p.analyzedAt?x.c.pending.length:0),0), warn=cs.reduce((a,x)=>a+(x.p.analyzedAt?x.c.warnings:0),0), ready=cs.filter(x=>x.c.ready).length;
+  return `<div class="row"><div><h1>Dossiers</h1><p class="sub">Upload a product's documents; the builder reads them, files them against TBS dossier points and flags what is missing, expired or inconsistent.</p></div><span class="spacer"></span><button class="btn primary" data-nav="new">+ Create new dossier</button></div>
+  ${aiNotice()}
+  <div class="stats"><div class="stat"><div class="n">${S.projects.length}</div><div class="l">Total dossiers</div></div><div class="stat"><div class="n">${docs}</div><div class="l">Documents</div></div><div class="stat"><div class="n">${pend}</div><div class="l">Pending</div></div><div class="stat"><div class="n">${warn}</div><div class="l">Warnings</div></div><div class="stat go"><div class="n">${ready}</div><div class="l">Ready for submission</div></div></div>
+  ${S.projects.length?`<div class="grid">${[...S.projects].sort((a,b)=>b.updatedAt-a.updatedAt).map(dossierCard).join("")}</div>`:`<div class="empty"><b>No dossiers yet</b>Create one, enter the product name and drop in the COA, labels, certificates and stability data.<br><br><button class="btn primary" data-nav="new">+ Create new dossier</button></div>`}`; }
+function vDossiers(){ return `<h1>My dossiers</h1><p class="sub">Each dossier keeps its own documents, extracted data and version history.</p>${S.projects.length?`<div class="grid">${[...S.projects].sort((a,b)=>b.updatedAt-a.updatedAt).map(dossierCard).join("")}</div>`:`<div class="empty"><b>No dossiers yet</b><button class="btn primary" data-nav="new">+ Create new dossier</button></div>`}`; }
+function vNew(){ const p=curP(); if(!p) S.newStep=1; const step=S.newStep||1;
+  if(step===1) return `<h1>New dossier</h1><p class="sub">Step 1 of 2 – name the product exactly as it appears on the COA or composition.</p>${aiNotice()}
+    <div class="card" style="max-width:560px"><label class="field"><span>Product name</span><input class="input" id="pname" data-keep="pname" placeholder="e.g. CALVITAN-D3 TABLET" value="${esc(S.draftName||"")}"></label>
+    <div id="dupWarn"></div><button class="btn primary" data-act="create">Continue to upload</button></div>`;
+  return `<h1>${esc(p.name)}</h1><p class="sub">Step 2 of 2 – upload documents. PDF, DOCX, XLSX, JPG, PNG and ZIP; several at once.</p>${aiNotice()}${uploadBlock(p)}`; }
+function uploadBlock(p){ const c=compute(p); const pendingDocs=p.docs.filter(d=>d.kind!=="container"&&!d.analysis).length;
+  return `<div class="drop" id="drop" tabindex="0" role="button" aria-label="Drop files or browse"><b>Drop files here</b><span class="muted">or <u>browse files</u> · up to 60 MB each</span><input type="file" id="fileIn" multiple hidden accept="${ACCEPT.map(e=>"."+e).join(",")}"></div>
+  ${S.uploads.length?`<div class="uplist">${S.uploads.map((u,i)=>`<div class="up" data-up="${i}"><span>${esc(u.name)}</span><span class="muted small">${kb(u.size)}</span><span class="st small ${u.bad?"na":""}">${esc(u.state)}<div class="pb"><i style="width:${u.pct}%"></i></div></span></div>`).join("")}</div>`:""}
+  <div class="row" style="margin-top:18px"><button class="btn primary" data-act="analyze" data-id="${p.id}" ${S.running||!pendingDocs||!AI_READY?"disabled":""}>Analyze documents${pendingDocs?` (${pendingDocs} new)`:""}</button>
+  ${p.docs.length?`<button class="btn" data-act="open" data-id="${p.id}">Open dossier</button>`:""}<span class="muted small">${c.docs.length} document(s) in this dossier</span></div>
+  ${runPanel(p)}`; }
+function runPanel(p){ if(!(S.running&&S.running.pid===p.id) && !S.log.length) return ""; const r=S.running;
+  return `<div style="margin-top:16px">${r?`<div class="row"><b>${esc(r.phase)}</b><span class="muted">${r.done} / ${r.total} documents</span><span class="spacer"></span><button class="btn sm danger" data-act="stop">Stop</button></div><div class="bar"><i style="width:${r.total?Math.round(r.done/r.total*100):100}%"></i></div>`:""}${r?`<div class="log" aria-live="polite">${esc(S.log.join("\n"))}</div>`:`<details><summary class="small muted" style="cursor:pointer">Last analysis log</summary><div class="log">${esc(S.log.join("\n"))}</div></details>`}</div>`; }
+function analysisGrid(p,c){ const proc=c.analysed.length; const cls=c.analysed.filter(d=>effOf(d).point!=="UNCLASSIFIED").length;
+  return `<div class="analysis-grid"><div><b>${c.docs.length}</b><span>Total files</span></div><div><b>${proc}</b><span>Processed</span></div><div><b>${cls}</b><span>Classified</span></div><div><b>${p.analyzedAt?c.pending.length:"—"}</b><span>Pending</span></div><div><b>${p.analyzedAt?c.validity.filter(x=>["EXPIRED","OVERDUE","EXPIRING"].includes(x.v.key)).length+c.rows.filter(r=>r.key==="SUPPORTING").length:"—"}</b><span>Warnings</span></div><div><b>${p.analyzedAt?c.conflicts.length:"—"}</b><span>Conflicts</span></div></div>`; }
+const TABS=["Overview","Product Details","Composition","Manufacturer","Documents","Pending","Conflicts","Expiry Check","Reports","Assistant","Versions"];
+function vDossier(){ const p=curP(); if(!p){ S.view="dashboard"; return vDashboard(); } const c=compute(p);
+  return `<div class="row"><div><h1>${esc(p.name)}</h1><div class="muted small">Version ${p.version||0}${p.analyzedAt?" · analysed "+new Date(p.analyzedAt).toLocaleString():" · not analysed yet"}${p.stale&&p.analyzedAt?" · ZIP not yet regenerated for this version":""}</div></div><span class="spacer"></span>
+  <button class="btn" data-act="upload-more" data-id="${p.id}">Upload more</button><button class="btn" data-act="validate" data-id="${p.id}" ${S.running||!AI_READY?"disabled":""}>Validate</button><button class="btn primary" data-act="zip" data-id="${p.id}" ${!p.analyzedAt?"disabled":""}>Generate final ZIP</button></div>
+  ${aiNotice()}${analysisGrid(p,c)}${runPanel(p)}
+  <div class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${S.tab===t}" data-tab="${t}">${t}${t==="Pending"&&p.analyzedAt&&c.pending.length?` (${c.pending.length})`:""}${t==="Conflicts"&&c.conflicts.length?` (${c.conflicts.length})`:""}</button>`).join("")}</div>
+  ${({"Overview":tOverview,"Product Details":tProduct,"Composition":tComposition,"Manufacturer":tMfr,"Documents":tDocs,"Pending":tPending,"Conflicts":tConflicts,"Expiry Check":tExpiry,"Reports":tReports,"Assistant":tChat,"Versions":tVersions}[S.tab]||tOverview)(p,c)}`; }
+function tOverview(p,c){
+  if(!c.docs.length) return `<div class="empty"><b>No documents yet</b>Upload the product's documents to start.<br><br><button class="btn primary" data-act="upload-more" data-id="${p.id}">Upload documents</button></div>`;
+  if(!p.analyzedAt) return `<div class="empty"><b>${c.docs.length} document(s) uploaded</b>Run the analysis to classify, extract and validate them.<br><br><button class="btn primary" data-act="analyze" data-id="${p.id}" ${!AI_READY||S.running?"disabled":""}>Analyze documents</button></div>`;
+  const ixRow=r=>`<div class="ix s-${r.key} ${r.code==="1.6.1"?"child":""}"><span class="edge"></span><span class="code">${esc(r.code)}</span><div><div>${esc(r.label)}${r.required?"":' <span class="muted small">(optional)</span>'}</div><div class="files">${r.files.length?r.files.map(f=>esc(f.name)).join(", "):esc(r.remarks[0]||"")}</div></div><div>${badge(r.status,r.key)}</div></div>`;
+  return `${c.ready?`<div class="notice">All required documents are present with no critical conflicts. Document set complete – regulatory acceptance is decided by TBS.</div>`:""}
+  ${p.summary?`<p style="max-width:80ch">${esc(p.summary)}</p>`:""}
+  <h2>Dossier index</h2><div class="index">${c.rows.map(ixRow).join("")}</div>
+  ${c.mism.length?`<h2>Set aside</h2><div class="notice bad">${c.mism.map(d=>`<div><b>${esc(d.name)}</b> – ${esc(effOf(d).match==="no"?"belongs to a different product: "+(d.analysis.product_name_in_document||"")+". "+(d.analysis.match_reason||""):"excluded by you")}</div>`).join("")}<div class="small" style="margin-top:6px">These files go to 99_For_Review_Not_Part_of_Submission in the ZIP. Change this under Documents if it is wrong.</div></div>`:""}
+  ${(p.observations||[]).length?`<h2>Regulatory observations</h2><div class="tablewrap"><table><tbody>${p.observations.map((o,i)=>`<tr><td class="muted" style="width:60px">R-${String(i+1).padStart(2,"0")}</td><td>${esc(o)}</td></tr>`).join("")}</tbody></table></div>`:""}`; }
+function formRows(p,keys){ return `<div class="kvform">${keys.map(([k,l])=>{ const f=p.form[k]; const val=f?(typeof f==="string"?f:f.value||""):""; const src=f&&f.sources?f.sources.join("; "):"";
+  return `<div>${esc(k)} ${esc(l)}${p.formEdited[k]?' <span class="badge b-NA">edited</span>':""}</div><div><textarea class="input" data-form="${k}" data-keep="f${k}" rows="${Math.min(8,Math.max(1,Math.ceil(val.length/90)))}">${esc(val||NA)}</textarea>${src?`<div class="src">Source: ${esc(src)}</div>`:""}</div>`;}).join("")}</div>`; }
+function tProduct(p){ if(!p.analyzedAt) return `<p class="muted">Analyse the documents to fill this form.</p>`; return `<p class="sub">Extracted from the documents. Edit any field; edits are kept when you re-validate.</p>${formRows(p,FORM_FIELDS.filter(f=>!f[0].startsWith("3")))}`; }
+function tMfr(p){ if(!p.analyzedAt) return `<p class="muted">Analyse the documents to fill this form.</p>`; return `<p class="sub">Manufacturer particulars (TBS section 3.0).</p>${formRows(p,FORM_FIELDS.filter(f=>f[0].startsWith("3")))}`; }
+function tComposition(p){ const ing=p.ingredients||[]; const cols=[["name","Ingredient name"],["unit","Unit"],["value","Value"],["proportion_label","Ingredient proportion"],["proportion_unit","Proportion unit"],["proportion_value","Proportion value"],["purpose","Purpose of use"],["source","Source"]];
+  return `<div class="row"><p class="sub" style="margin:0">Section 2.0. Click any cell to edit.${p.ingredientsEdited?" Edited by you – re-validation will not overwrite it.":""}</p><span class="spacer"></span><button class="btn sm" data-act="ing-add">Add row</button>${p.ingredientsEdited?`<button class="btn sm" data-act="ing-reset">Allow AI to refresh</button>`:""}</div>
+  <div class="tablewrap ingr" style="margin-top:10px"><table><thead><tr><th>#</th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>${ing.map((r,i)=>`<tr><td class="muted">${i+1}</td>${cols.map(([k])=>`<td><input data-ing="${i}" data-k="${k}" data-keep="i${i}${k}" value="${esc(r[k]||"")}" aria-label="${k} row ${i+1}"></td>`).join("")}<td><button class="btn sm danger" data-act="ing-del" data-i="${i}" aria-label="Delete row">✕</button></td></tr>`).join("")||`<tr><td colspan="10" class="muted">${p.analyzedAt?NA:"Analyse the documents to extract the composition."}</td></tr>`}</tbody></table></div>`; }
+function tDocs(p,c){ const pts=["1.6.1","1.6.2","1.6.3","1.6.4","1.6.5","1.6.6","1.7.1","1.7.2","1.7.3","1.7.X","UNCLASSIFIED"];
+  return `<div class="row"><p class="sub" style="margin:0">Classification is verified against content. Correct it here if needed – status, folders and the ZIP follow your choice.</p><span class="spacer"></span><button class="btn sm" data-act="add-cat">Add custom category</button></div>
+  <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>File name</th><th>Dossier point</th><th>Label type</th><th>Product match</th><th>Status</th><th>Date / Expiry</th><th></th></tr></thead><tbody>${c.docs.map(d=>{ const e=effOf(d); const v=validityOf(d);
+  return `<tr><td><b>${esc(d.name)}</b><div class="small muted">${kb(d.size)}${d.pages?" · "+d.pages+" pp":""}${d.parent?" · from "+esc(d.parent):""}</div>${d.analysis?`<div class="small">${esc(d.analysis.document_title||"")}</div><div class="small muted">${esc(d.analysis.classification_reason||"")}</div>`:""}${d.error?`<div class="small na">${esc(d.error)}</div>`:""}</td>
+  <td>${d.analysis?`<select class="input" data-ov="point" data-id="${d.id}" aria-label="Dossier point">${pts.map(x=>`<option ${e.point===x?"selected":""}>${x}</option>`).join("")}</select>${e.point==="1.7.X"?`<input class="input" style="margin-top:4px" data-ov="other" data-id="${d.id}" value="${esc(e.other)}" aria-label="Category name">`:""}`:`<span class="muted">${d.status==="analyzing"?"Analysing…":"Not analysed"}</span>`}</td>
+  <td>${e.point==="1.6.1"?`<select class="input" data-ov="sub" data-id="${d.id}" aria-label="Label type">${LABEL_SUBS.map(x=>`<option ${e.sub===x?"selected":""}>${x}</option>`).join("")}</select>`:"—"}</td>
+  <td>${d.analysis?`<select class="input" data-ov="match" data-id="${d.id}" aria-label="Product match">${["yes","no","unclear","not_product_specific"].map(x=>`<option ${e.match===x?"selected":""}>${x}</option>`).join("")}</select>`:"—"}</td>
+  <td>${d.analysis?(e.match==="no"?badge("NOT USED","NA"):e.point==="1.6.4"&&e.formal===false?badge("SUPPORTING","SUPPORTING"):badge("CLASSIFIED","AVAILABLE")):badge(d.status==="error"?"ERROR":"PENDING",d.status==="error"?"EXPIRED":"NA")}</td>
+  <td class="small">${v?`${fmtD(v.issue)}<br>${v.expiry||v.next||v.batchExp?badge(v.status,v.key):'<span class="muted">no expiry</span>'}`:"—"}</td>
+  <td><div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm" data-act="view" data-id="${d.id}">View</button><button class="btn sm" data-act="dl-orig" data-id="${d.id}">Download</button><button class="btn sm" data-act="reanalyze" data-id="${d.id}" ${S.running||!AI_READY?"disabled":""} title="Re-read this document">↻</button><button class="btn sm danger" data-act="rm-doc" data-id="${d.id}" title="Remove from dossier">✕</button></div></td></tr>`; }).join("")||`<tr><td colspan="7" class="muted">No documents.</td></tr>`}</tbody></table></div>
+  ${p.custom&&p.custom.length?`<p class="small muted">Custom required categories: ${p.custom.map(esc).join(", ")}</p>`:""}`; }
+function tPending(p,c){ if(!p.analyzedAt) return `<p class="muted">Analyse the documents to identify what is missing.</p>`;
+  return `${c.pending.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Dossier point</th><th>Document</th><th>Status</th><th>Remarks</th></tr></thead><tbody>${c.pending.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.code)}</b></td><td>${esc(x.doc)}</td><td>${badge(x.status.startsWith("PENDING")?"PENDING":x.status.split(" ")[0],x.status.startsWith("PENDING")?"PENDING":"OUTDATED")}</td><td class="small">${esc(x.remark)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="notice">No pending documents.</div>`}
+  <p class="small muted" style="margin-top:12px">Each missing mandatory document gets a PENDING.txt in its folder in the ZIP. Upload the document, validate again, and the PENDING.txt is removed from the next ZIP.</p>
+  <button class="btn" data-act="upload-more" data-id="${p.id}">Upload missing documents</button>`; }
+function tConflicts(p,c){ if(!p.analyzedAt) return `<p class="muted">Analyse the documents to cross-check them.</p>`; if(!c.conflicts.length) return `<div class="notice">No conflicts detected across the uploaded documents.</div>`;
+  return `<p class="sub">Nothing here has been resolved automatically. Review each and correct the source document.</p>${c.conflicts.map(x=>`<div class="conf ${esc(x.severity)}"><div class="row"><b>Document conflict – ${esc(x.field)}</b><span class="spacer"></span>${badge(String(x.severity||"").toUpperCase(),x.severity)}</div><dl><dt>Document A</dt><dd>${esc(x.doc_a)}</dd><dt>Value A</dt><dd>${esc(x.value_a)}</dd><dt>Document B</dt><dd>${esc(x.doc_b)}</dd><dt>Value B</dt><dd>${esc(x.value_b)}</dd><dt>Action</dt><dd>${esc(x.action||"Review required")}</dd></dl></div>`).join("")}`; }
+function tExpiry(p,c){ if(!p.analyzedAt) return `<p class="muted">Analyse the documents to check dates.</p>`;
+  return `<p class="sub">Compared with today (${new Date().toLocaleDateString("en-GB")}). "Expiring soon" = within ${S.settings.expiryDays} days.</p><div class="tablewrap"><table><thead><tr><th>Document</th><th>Point</th><th>Issue / Review</th><th>Expiry</th><th>Next review</th><th>Status</th><th>Basis</th></tr></thead><tbody>${c.validity.map(({d,v})=>`<tr><td><b>${esc(d.name)}</b><div class="small muted">${esc(d.analysis.issuing_authority||"")} ${esc(d.analysis.reference_number||"")}</div></td><td>${esc(effOf(d).point)}</td><td>${fmtD(v.issue)}</td><td>${fmtD(v.expiry||v.batchExp)}</td><td>${fmtD(v.next)}</td><td>${badge(v.status,v.key)}<div class="small muted">${esc(v.left||"")}</div></td><td class="small">${esc(v.note)}</td></tr>`).join("")||`<tr><td colspan="7" class="muted">No dated documents found.</td></tr>`}</tbody></table></div>`; }
+function tReports(p,c){ const dis=!p.analyzedAt?"disabled":"";
+  return `<p class="sub">Downloads are generated from the current version (${p.version||0}).</p><div class="grid">
+  <div class="card"><h3 style="margin-top:0">Final dossier ZIP</h3><p class="small muted">Folder structure, renamed copies, DOCX form, PENDING.txt files, reports and traceability log.</p><button class="btn primary" data-act="zip" data-id="${p.id}" ${dis}>Download final ZIP</button></div>
+  <div class="card"><h3 style="margin-top:0">TBS dossier form</h3><p class="small muted">Editable Word document with all sections and reports.</p><button class="btn" data-act="docx" data-id="${p.id}" ${dis}>Download DOCX</button></div>
+  <div class="card"><h3 style="margin-top:0">Reports (CSV)</h3><div class="row"><button class="btn sm" data-act="rep" data-r="status" ${dis}>Status report</button><button class="btn sm" data-act="rep" data-r="pending" ${dis}>Pending list</button><button class="btn sm" data-act="rep" data-r="conflict" ${dis}>Conflict report</button><button class="btn sm" data-act="rep" data-r="expiry" ${dis}>Expiry report</button></div></div></div>
+  <h2>Document status</h2><div class="tablewrap"><table><thead><tr><th>Dossier point</th><th>Required document</th><th>Uploaded</th><th>Status</th><th>File name</th><th>Expiry date</th><th>Remarks</th></tr></thead><tbody>${c.rows.map(r=>`<tr><td><b>${esc(r.code)}</b></td><td>${esc(r.label)}</td><td>${r.files.length?"Yes":"No"}</td><td>${badge(r.status,r.key)}</td><td class="small">${r.files.map(f=>esc(f.name)).join("<br>")||"—"}</td><td>${fmtD(r.expiry)}</td><td class="small">${esc(r.remarks.join("; "))}</td></tr>`).join("")}</tbody></table></div>
+  <h2>Final quality check</h2><div class="tablewrap"><table><tbody>${qcChecks(p,c).slice(0,15).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v?badge("Done","AVAILABLE"):badge("Open","PENDING")}</td></tr>`).join("")}</tbody></table></div>`; }
+function tChat(p){ const sugg=["What documents are pending?","Why is the GMP document marked supporting?","Which certificate is expired?","Show manufacturer details.","Show composition.","Which files are classified under 1.6.1?","Is this dossier complete?"];
+  return `<div class="chat"><div class="msgs">${p.chat.length?p.chat.map(m=>`<div class="msg ${m.role==="user"?"u":"a"}">${esc(m.content)}</div>`).join(""):`<div class="muted small" style="margin:auto;text-align:center">Ask about this dossier. Answers come only from the uploaded documents.</div>`}</div>
+  <div class="chips">${sugg.map(s=>`<button class="chip" data-act="ask" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div>
+  <div class="chatin"><input class="input" id="chatIn" data-keep="chat" placeholder="${AI_READY?"Ask a question about this dossier":"AI unavailable in this view"}" ${AI_READY&&p.analyzedAt?"":"disabled"}><button class="btn primary" data-act="send" ${AI_READY&&p.analyzedAt?"":"disabled"}>Send</button>${p.chat.length?`<button class="btn" data-act="clear-chat">Clear</button>`:""}</div></div>`; }
+function tVersions(p){ return `<div class="row"><p class="sub" style="margin:0">A version is recorded each time the dossier is validated. New uploads update this dossier; use "Create new version" to branch a copy.</p><span class="spacer"></span><button class="btn sm" data-act="new-version">Create new version (copy)</button></div>
+  <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Version</th><th>Date</th><th>Change</th><th>Documents</th><th>Pending</th><th>Warnings</th><th>Progress</th></tr></thead><tbody>${[...p.versions].reverse().map(v=>`<tr><td><b>Version ${v.n}</b></td><td>${new Date(v.date).toLocaleString()}</td><td>${esc(v.note)}</td><td>${v.docs}</td><td>${v.pending}</td><td>${v.warnings}</td><td>${v.progress}%</td></tr>`).join("")||`<tr><td colspan="7" class="muted">No versions yet – validate the dossier to record version 1.</td></tr>`}</tbody></table></div>
+  ${p.generated.length?`<h2>Generated files</h2><div class="tablewrap"><table><tbody>${p.generated.map(g=>`<tr><td>${esc(g.kind)}</td><td>${esc(g.name)}</td><td>v${g.version}</td><td>${new Date(g.date).toLocaleString()}</td></tr>`).join("")}</tbody></table></div>`:""}
+  <h2>Danger zone</h2><button class="btn danger" data-act="del-project">Delete this dossier</button>`; }
+function vDocuments(){ const rows=S.projects.flatMap(p=>p.docs.filter(d=>d.kind!=="container").map(d=>({p,d})));
+  return `<h1>Documents</h1><p class="sub">Every uploaded document across all dossiers. Originals are stored unchanged in this browser.</p><div class="tablewrap"><table><thead><tr><th>File</th><th>Dossier</th><th>Point</th><th>Match</th><th>Uploaded</th><th></th></tr></thead><tbody>${rows.map(({p,d})=>`<tr><td><b>${esc(d.name)}</b><div class="small muted">${esc(d.analysis?.document_title||"")}</div></td><td>${esc(p.name)}</td><td>${d.analysis?esc(effOf(d).point+(effOf(d).sub?" / "+effOf(d).sub:"")):'<span class="muted">not analysed</span>'}</td><td>${d.analysis?esc(effOf(d).match):"—"}</td><td class="small">${new Date(d.addedAt).toLocaleDateString("en-GB")}</td><td><button class="btn sm" data-act="open" data-id="${p.id}">Open dossier</button></td></tr>`).join("")||`<tr><td colspan="6" class="muted">No documents uploaded.</td></tr>`}</tbody></table></div>`; }
+function vPending(){ const rows=S.projects.filter(p=>p.analyzedAt).flatMap(p=>compute(p).pending.map(x=>({p,x})));
+  return `<h1>Pending documents</h1><p class="sub">What each dossier still needs before it is document-complete.</p><div class="tablewrap"><table><thead><tr><th>Dossier</th><th>Point</th><th>Document</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(({p,x})=>`<tr><td><b>${esc(p.name)}</b></td><td>${esc(x.code)}</td><td>${esc(x.doc)}<div class="small muted">${esc(x.remark)}</div></td><td>${badge(x.status.startsWith("PENDING")?"PENDING":"OUTDATED",x.status.startsWith("PENDING")?"PENDING":"OUTDATED")}</td><td><button class="btn sm" data-act="upload-more" data-id="${p.id}">Upload</button></td></tr>`).join("")||`<tr><td colspan="5" class="muted">Nothing pending in analysed dossiers.</td></tr>`}</tbody></table></div>`; }
+function vReports(){ const ps=S.projects.filter(p=>p.analyzedAt);
+  return `<h1>Validation reports</h1><p class="sub">Conflicts and date checks across all analysed dossiers.</p>${ps.map(p=>{ const c=compute(p); const bad=c.validity.filter(x=>["EXPIRED","OVERDUE","EXPIRING"].includes(x.v.key));
+    return `<div class="card" style="margin-bottom:14px"><div class="row"><h3 style="margin:0">${esc(p.name)}</h3><span class="spacer"></span><button class="btn sm" data-act="open-tab" data-id="${p.id}" data-t="Conflicts">Conflicts (${c.conflicts.length})</button><button class="btn sm" data-act="open-tab" data-id="${p.id}" data-t="Expiry Check">Expiry check</button></div>
+    ${bad.length?`<ul class="small">${bad.map(({d,v})=>`<li>${badge(v.status,v.key)} ${esc(d.name)} – ${esc(v.left||"")}</li>`).join("")}</ul>`:'<p class="small muted">No expired or overdue documents.</p>'}
+    ${c.conflicts.slice(0,4).map(x=>`<div class="small">${badge(String(x.severity).toUpperCase(),x.severity)} ${esc(x.field)}: ${esc(x.doc_a)} vs ${esc(x.doc_b)}</div>`).join("")}</div>`;}).join("")||`<div class="empty"><b>No analysed dossiers yet</b></div>`}`; }
+function vGenerated(){ const rows=S.projects.flatMap(p=>p.generated.map(g=>({p,g}))).sort((a,b)=>b.g.date-a.g.date);
+  return `<h1>Generated files</h1><p class="sub">Files you have downloaded. Regenerate any time from the dossier – each build uses the latest validated data.</p><div class="tablewrap"><table><thead><tr><th>File</th><th>Dossier</th><th>Version</th><th>Date</th><th></th></tr></thead><tbody>${rows.map(({p,g})=>`<tr><td><b>${esc(g.name)}</b><div class="small muted">${esc(g.kind)}${g.size?" · "+kb(g.size):""}${g.pending!==undefined?" · "+g.pending+" PENDING.txt":""}</div></td><td>${esc(p.name)}</td><td>v${g.version}</td><td>${new Date(g.date).toLocaleString()}</td><td><button class="btn sm" data-act="${g.kind==="ZIP"?"zip":g.kind==="DOCX"?"docx":"open"}" data-id="${p.id}">Regenerate</button></td></tr>`).join("")||`<tr><td colspan="5" class="muted">Nothing generated yet.</td></tr>`}</tbody></table></div>`; }
+function vSettings(){ const s=S.settings;
+  return `<h1>Settings</h1><p class="sub">Stored in this browser.</p><div class="card" style="max-width:620px">
+  <label class="field"><span>AI model for document reading</span><select class="input" data-set="tier"><option value="quick" ${s.tier==="quick"?"selected":""}>Quick – fastest, less thorough</option><option value="default" ${s.tier==="default"?"selected":""}>Balanced (recommended)</option><option value="complex" ${s.tier==="complex"?"selected":""}>Most capable – slowest</option></select></label>
+  <label class="field"><span>"Expiring soon" window (days)</span><input class="input" type="number" min="7" max="365" data-set="expiryDays" value="${s.expiryDays}"></label>
+  <label class="field"><span>Page images sent per document (for scanned pages and artworks)</span><input class="input" type="number" min="0" max="${LIMITS?.images?.maxCount||20}" data-set="maxImages" value="${s.maxImages}"></label>
+  <label class="field" style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-set="req17" ${s.req17?"checked":""}><span style="margin:0">Treat 1.7.1–1.7.3 (Specification/MOA, Composition, Stability) as required</span></label>
+  <p class="small muted">AI: ${AI_READY?"available"+(LIMITS?.images?`, reads up to ${LIMITS.images.maxCount} images per request`:" (text only in this view)"):"not available in this view"}. Downloads: ${DL?"available":"not available in this view"}.</p>
+  <p class="small muted">Privacy: documents and dossiers are stored only in this browser (IndexedDB). Document content is sent through this server to the Anthropic API only when you run an analysis; the server stores nothing. Virus scanning is not performed – upload files only from trusted sources.</p><button class="btn sm" data-act="clear-pw">Change app password</button></div>`; }
+
+/* ================= events ================= */
+document.addEventListener("click",async e=>{
+  const n=e.target.closest("[data-nav]"); if(n){ S.view=n.dataset.nav; if(S.view==="new"){ S.newStep=1; S.uploads=[]; S.log=[]; } render(); document.getElementById("main").scrollTop=0; return; }
+  const tb=e.target.closest("[data-tab]"); if(tb){ S.tab=tb.dataset.tab; render(); if(S.tab==="Assistant") scrollChat(); return; }
+  if(e.target.closest("#drop") && !e.target.closest("input")){ document.getElementById("fileIn").click(); return; }
+  if(e.target.id==="menuBtn"){ document.getElementById("side").classList.toggle("open"); return; }
+  const a=e.target.closest("[data-act]"); if(!a) return; const act=a.dataset.act; const p=a.dataset.id?S.projects.find(x=>x.id===a.dataset.id)||curP():curP();
+  switch(act){
+    case "create":{ const nm=(document.getElementById("pname").value||"").trim(); if(!nm){ toast("Enter the product name."); return; }
+      const dup=S.projects.find(x=>x.name.toLowerCase()===nm.toLowerCase());
+      if(dup && !a.dataset.force){ document.getElementById("dupWarn").innerHTML=`<div class="notice warn">A dossier named “${esc(dup.name)}” already exists (version ${dup.version||0}).<div class="row" style="margin-top:8px"><button class="btn sm primary" data-act="upload-more" data-id="${dup.id}">Add documents to it</button><button class="btn sm" data-act="create" data-force="1">Create new version</button></div></div>`; S.draftName=nm; return; }
+      const np=dup? await makeVersionCopy(dup) : newProject(nm); await saveProject(np); S.pid=np.id; S.newStep=2; S.uploads=[]; S.draftName=""; render(); break; }
+    case "open": if(!S.running) S.log=[]; S.pid=p.id; S.view="dossier"; S.tab="Overview"; render(); break;
+    case "open-tab": S.pid=p.id; S.view="dossier"; S.tab=a.dataset.t; render(); break;
+    case "upload-more": S.pid=p.id; S.view="new"; S.newStep=2; S.uploads=[]; render(); break;
+    case "analyze": S.pid=p.id; await runAnalysis(p); break;
+    case "validate": S.pid=p.id; if(p.docs.some(d=>d.kind!=="container"&&!d.analysis)) await runAnalysis(p); else await revalidate(p); break;
+    case "reanalyze":{ const d=p.docs.find(x=>x.id===a.dataset.id); if(d){ d.analysis=null; d.override=null; await saveProject(p); await runAnalysis(p); } break; }
+    case "stop": S.running&&S.running.ctl.abort(); break;
+    case "zip": await doGenerate(p,"zip"); break;
+    case "docx": await doGenerate(p,"docx"); break;
+    case "rep": await doReport(p,a.dataset.r); break;
+    case "view":{ const d=p.docs.find(x=>x.id===a.dataset.id); if(d) preview(p,d); break; }
+    case "dl-orig":{ const rec=await idbGet("files",a.dataset.id); if(rec){ const ok=["pdf","docx","xlsx","jpg","jpeg","png","webp","zip","txt","csv"]; await save(ok.includes(extOf(rec.name))?rec.name:rec.name+".txt",rec.blob); } break; }
+    case "close-modal": document.getElementById("modalRoot").innerHTML=""; break;
+    case "rm-doc":{ const d=p.docs.find(x=>x.id===a.dataset.id); if(d && confirm(`Remove ${d.name} from this dossier? The file is deleted from this browser.`)){ p.docs=p.docs.filter(x=>x.id!==d.id); await idbDel("files",d.id); p.stale=true; await saveProject(p); render(); } break; }
+    case "ing-add": p.ingredients=p.ingredients||[]; p.ingredients.push({name:"",unit:"mg",value:"",proportion_label:"",proportion_unit:"",proportion_value:"",purpose:"",source:"Manual entry"}); p.ingredientsEdited=true; await saveProject(p); render(); break;
+    case "ing-del": p.ingredients.splice(+a.dataset.i,1); p.ingredientsEdited=true; await saveProject(p); render(); break;
+    case "ing-reset": p.ingredientsEdited=false; await saveProject(p); toast("The next validation will refresh the composition."); render(); break;
+    case "add-cat":{ const nm=prompt("Name of the additional document category (e.g. Manufacturing Licence). It will be treated as required."); if(nm&&nm.trim()){ p.custom=p.custom||[]; p.custom.push(nm.trim()); await saveProject(p); render(); } break; }
+    case "ask": await askChat(p,a.dataset.q); break;
+    case "send":{ const i=document.getElementById("chatIn"); const q=i.value.trim(); if(q){ i.value=""; await askChat(p,q); } break; }
+    case "clear-pw": localStorage.removeItem(window.TBS_PW_KEY||"tbs_app_password"); toast("App password cleared – you will be asked again on the next AI request."); break;
+    case "clear-chat": p.chat=[]; await saveProject(p); render(); break;
+    case "new-version":{ const np=await makeVersionCopy(p); S.pid=np.id; toast("New version created"); render(); break; }
+    case "del-project": if(confirm(`Delete dossier “${p.name}” and all its stored files from this browser?`)){ const files=await idbFiles(p.id); for(const f of files) await idbDel("files",f.id); await idbDel("projects",p.id); S.projects=S.projects.filter(x=>x.id!==p.id); S.view="dashboard"; render(); } break;
+  }
+});
+async function makeVersionCopy(p){ const files=await idbFiles(p.id); const np=newProject(p.name); const idmap={};
+  for(const f of files){ const nid=uid(); idmap[f.id]=nid; await idbPut("files",{...f,id:nid,pid:np.id,parent:f.parent?idmap[f.parent]||f.parent:undefined}); }
+  Object.assign(np,JSON.parse(JSON.stringify({form:p.form||{},formEdited:p.formEdited||{},ingredients:p.ingredients||[],ingredientsEdited:!!p.ingredientsEdited,conflicts:p.conflicts||[],observations:p.observations||[],summary:p.summary||"",custom:p.custom||[],analyzedAt:p.analyzedAt})));
+  np.docs=p.docs.map(d=>({...JSON.parse(JSON.stringify(d)),id:idmap[d.id]||d.id})); np.version=(p.version||0)+1; np.versionOf=p.name; np.parent=p.id;
+  np.versions=[{n:np.version,date:Date.now(),note:`New version copied from version ${p.version||0}`,docs:np.docs.filter(d=>d.kind!=="container").length,pending:0,warnings:0,progress:0}];
+  await saveProject(np); return np; }
+async function revalidate(p){ if(!AI_READY){ toast("AI unavailable – showing deterministic checks only."); render(); return; }
+  if(S.running) return; const ctl=new AbortController(); S.running={pid:p.id,ctl,done:0,total:0,phase:"Cross-checking documents"}; S.log=["Re-running cross-document validation…"]; render();
+  try{ const r=await consolidate(p,ctl.signal); if(r.form) for(const [k,v] of Object.entries(r.form)) if(!p.formEdited[k]) p.form[k]=v; if(Array.isArray(r.ingredients)&&!p.ingredientsEdited) p.ingredients=r.ingredients; p.conflicts=r.conflicts||[]; p.observations=r.observations||[]; p.summary=r.summary||p.summary;
+    p.analyzedAt=Date.now(); p.version=(p.version||0)+1; p.stale=true; const c=compute(p); p.versions.push({n:p.version,date:Date.now(),note:"Re-validated",docs:c.docs.length,pending:c.pending.length,warnings:c.warnings,progress:c.progress,snapshot:snapshotOf(p)}); await saveProject(p); toast("Validation complete – version "+p.version); }
+  catch(e){ toast(aiErr(e)); } finally{ S.running=null; S.log=[]; render(); } }
+document.addEventListener("change",async e=>{
+  const t=e.target;
+  if(t.id==="fileIn"){ const p=curP(); if(p) await addFiles(p,t.files); t.value=""; return; }
+  if(t.dataset.ov){ const p=curP(); const d=p.docs.find(x=>x.id===t.dataset.id); d.override=d.override||{}; d.override[t.dataset.ov]=t.value; if(t.dataset.ov==="match") d.include=t.value!=="no"?true:false; p.stale=true; await saveProject(p); render(); return; }
+  if(t.dataset.set){ const k=t.dataset.set; S.settings[k]=t.type==="checkbox"?t.checked:(t.type==="number"?Math.max(0,+t.value||0):t.value); await idbPut("kv",{k:"settings",v:S.settings}); render(); return; }
+  if(t.dataset.form){ const p=curP(); const k=t.dataset.form; const old=p.form[k]; p.form[k]={value:t.value,sources:(old&&old.sources)||["Edited by user"]}; p.formEdited[k]=true; p.stale=true; await saveProject(p); return; }
+  if(t.dataset.ing!==undefined){ const p=curP(); p.ingredients[+t.dataset.ing][t.dataset.k]=t.value; p.ingredientsEdited=true; p.stale=true; await saveProject(p); return; }
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.id==="chatIn"){ e.preventDefault(); document.querySelector('[data-act="send"]').click(); }
+  if(e.key==="Enter"&&e.target.id==="pname"){ e.preventDefault(); document.querySelector('[data-act="create"]').click(); }
+  if((e.key==="Enter"||e.key===" ")&&e.target.id==="drop"){ e.preventDefault(); document.getElementById("fileIn").click(); }
+  if(e.key==="Escape") document.getElementById("modalRoot").innerHTML=""; });
+document.addEventListener("input",e=>{ if(e.target.id==="pname") S.draftName=e.target.value; });
+["dragenter","dragover"].forEach(ev=>document.addEventListener(ev,e=>{ const d=e.target.closest&&e.target.closest("#drop"); if(d){ e.preventDefault(); d.classList.add("over"); } }));
+document.addEventListener("dragleave",e=>{ const d=e.target.closest&&e.target.closest("#drop"); if(d) d.classList.remove("over"); });
+document.addEventListener("drop",async e=>{ const d=e.target.closest&&e.target.closest("#drop"); if(!d) return; e.preventDefault(); d.classList.remove("over"); const p=curP(); if(p) await addFiles(p,e.dataTransfer.files); });
+document.addEventListener("dragover",e=>e.preventDefault());
+
+/* ================= boot ================= */
+(async()=>{
+  try{ DBH=await openDB(); S.projects=await idbAll("projects"); const st=await idbGet("kv","settings"); if(st&&st.v) S.settings={...S.settings,...st.v}; }
+  catch(e){ console.error(e); document.getElementById("view").innerHTML=`<div class="notice bad">Browser storage is unavailable, so dossiers cannot be saved in this view. ${esc(e.message||"")}</div>`; return; }
+  S.projects.forEach(p=>p.docs.forEach(d=>{ if(d.status==="analyzing") d.status=d.analysis?"done":"uploaded"; }));
+  render();
+})();
+</script>
+</body>
+</html>

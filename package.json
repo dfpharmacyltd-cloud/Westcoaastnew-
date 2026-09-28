@@ -1,0 +1,7 @@
+{
+  "name": "tbs-dossier-builder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TBS Dossier Builder - food supplement dossier generation (static front end + Vercel serverless AI proxy)",
+  "engines": { "node": ">=18" }
+}
